@@ -1,0 +1,26 @@
+[tools]
+go = "latest"
+golangci-lint = "latest"
+gotestsum = "latest"
+
+[tasks.all]
+depends = ["format", "lint", "test"]
+
+[tasks.lint]
+depends = "format"
+run = "golangci-lint run --fix"
+
+[tasks.format]
+run = "go fmt ./..."
+
+[tasks.test]
+run = "gotestsum --rerun-fails"
+
+[tasks.build]
+run = "go build -o ./bin/claude-afk ."
+
+[tasks.tidy]
+run = """
+go get -u ./...
+go mod tidy
+"""

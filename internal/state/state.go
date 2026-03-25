@@ -43,12 +43,15 @@ func Load(path string) (*Store, error) {
 		if os.IsNotExist(err) {
 			return s, nil
 		}
+
 		return s, nil
 	}
 
 	if err := json.Unmarshal(data, s); err != nil {
 		slog.Warn("corrupt state file, starting fresh", "path", path, "error", err)
+
 		s.Issues = make(map[string]IssueState)
+
 		return s, nil
 	}
 
@@ -81,6 +84,7 @@ func (s *Store) Save() error {
 func (s *Store) Set(key string, state IssueState) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	s.Issues[key] = state
 }
 
@@ -88,7 +92,9 @@ func (s *Store) Set(key string, state IssueState) {
 func (s *Store) Get(key string) (IssueState, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	st, ok := s.Issues[key]
+
 	return st, ok
 }
 
@@ -96,6 +102,7 @@ func (s *Store) Get(key string) (IssueState, bool) {
 func (s *Store) RecoverCrashed() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	for k, v := range s.Issues {
 		if v.Status == StatusInProgress {
 			v.Status = StatusPending
@@ -109,10 +116,12 @@ func (s *Store) RecoverCrashed() {
 func (s *Store) ShouldProcess(key string, maxRetries int) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	st, ok := s.Issues[key]
 	if !ok {
 		return true
 	}
+
 	switch st.Status {
 	case StatusCompleted, StatusInProgress:
 		return false

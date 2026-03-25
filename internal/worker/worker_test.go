@@ -20,39 +20,48 @@ import (
 
 func mockClaude(t *testing.T, dir string, output string, exitCode int) string {
 	t.Helper()
+
 	script := filepath.Join(dir, "claude")
+
 	content := fmt.Sprintf("#!/bin/bash\necho '%s'\nexit %d\n", output, exitCode)
 	if err := os.WriteFile(script, []byte(content), 0755); err != nil {
 		t.Fatal(err)
 	}
+
 	return script
 }
 
 func initBareRepo(t *testing.T, dir string) string {
 	t.Helper()
+
 	bare := filepath.Join(dir, "upstream.git")
-	run(t, "git", "init", "--bare", bare)
+	run(t, "init", "--bare", bare)
 
 	// Clone, add a commit, push so the bare repo has content.
 	work := filepath.Join(dir, "work")
-	run(t, "git", "clone", bare, work)
-	run(t, "git", "-C", work, "config", "user.email", "test@test.com")
-	run(t, "git", "-C", work, "config", "user.name", "test")
+	run(t, "clone", bare, work)
+	run(t, "-C", work, "config", "user.email", "test@test.com")
+	run(t, "-C", work, "config", "user.name", "test")
+
 	if err := os.WriteFile(filepath.Join(work, "README.md"), []byte("# test"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	run(t, "git", "-C", work, "add", ".")
-	run(t, "git", "-C", work, "commit", "-m", "init")
-	run(t, "git", "-C", work, "push")
+
+	run(t, "-C", work, "add", ".")
+	run(t, "-C", work, "commit", "-m", "init")
+	run(t, "-C", work, "push")
+
 	return bare
 }
 
-func run(t *testing.T, name string, args ...string) {
+func run(t *testing.T, args ...string) {
 	t.Helper()
-	cmd := exec.Command(name, args...)
+
+	cmd := exec.CommandContext(context.Background(), "git", args...)
+
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("%s %v failed: %v", name, args, err)
+		t.Fatalf("git %v failed: %v", args, err)
 	}
 }
 
@@ -60,10 +69,12 @@ func testWorker(t *testing.T) *Worker {
 	t.Helper()
 	dir := t.TempDir()
 	storePath := filepath.Join(dir, "state.json")
+
 	st, err := state.Load(storePath)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	return &Worker{
 		State:     st,
 		Notifier:  notify.New(""),
@@ -103,6 +114,7 @@ func TestWorker_RunClaude_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	if !strings.Contains(result, "ISSUE_RESOLVED") {
 		t.Errorf("result = %q, want ISSUE_RESOLVED", result)
 	}
@@ -146,8 +158,11 @@ func TestWorker_ProcessIssue_PRStrategy(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v3/repos/testorg/testrepo/pulls", func(w http.ResponseWriter, r *http.Request) {
 		pr := &github.PullRequest{Number: &prNum, HTMLURL: &prURL}
-		json.NewEncoder(w).Encode(pr)
+		if err := json.NewEncoder(w).Encode(pr); err != nil {
+			t.Errorf("encode PR response: %v", err)
+		}
 	})
+
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -184,6 +199,7 @@ func TestWorker_ProcessIssue_PRStrategy(t *testing.T) {
 	if !ok {
 		t.Fatal("state not found after ProcessIssue")
 	}
+
 	if st2.Status != state.StatusCompleted {
 		t.Errorf("status = %q, want %q (error: %s)", st2.Status, state.StatusCompleted, st2.Error)
 	}

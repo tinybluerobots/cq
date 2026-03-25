@@ -2,11 +2,15 @@ package poller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/google/go-github/v69/github"
 )
+
+// ErrInvalidRepoFormat is returned when a repo string is not in "owner/name" format.
+var ErrInvalidRepoFormat = errors.New("invalid repo format, expected owner/name")
 
 // Poller polls GitHub for repositories and issues matching configured criteria.
 type Poller struct {
@@ -25,6 +29,7 @@ func (p *Poller) ListRepos(ctx context.Context) ([]string, error) {
 	}
 
 	var allRepos []string
+
 	opts := &github.RepositoryListByOrgOptions{
 		Type:        "sources",
 		ListOptions: github.ListOptions{PerPage: 100},
@@ -35,15 +40,19 @@ func (p *Poller) ListRepos(ctx context.Context) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("listing repos for org %s: %w", p.Org, err)
 		}
+
 		for _, r := range repos {
 			if r.GetArchived() || r.GetFork() {
 				continue
 			}
+
 			allRepos = append(allRepos, r.GetFullName())
 		}
+
 		if resp.NextPage == 0 {
 			break
 		}
+
 		opts.Page = resp.NextPage
 	}
 
@@ -54,11 +63,13 @@ func (p *Poller) ListRepos(ctx context.Context) ([]string, error) {
 func (p *Poller) ListIssues(ctx context.Context, repo string) ([]*github.Issue, error) {
 	parts := strings.SplitN(repo, "/", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid repo format %q, expected owner/name", repo)
+		return nil, fmt.Errorf("%w: %q", ErrInvalidRepoFormat, repo)
 	}
+
 	owner, name := parts[0], parts[1]
 
 	var allIssues []*github.Issue
+
 	opts := &github.IssueListByRepoOptions{
 		State:       "open",
 		Labels:      []string{p.Label},
@@ -70,15 +81,19 @@ func (p *Poller) ListIssues(ctx context.Context, repo string) ([]*github.Issue, 
 		if err != nil {
 			return nil, fmt.Errorf("listing issues for %s: %w", repo, err)
 		}
+
 		for _, issue := range issues {
 			if issue.PullRequestLinks != nil {
 				continue
 			}
+
 			allIssues = append(allIssues, issue)
 		}
+
 		if resp.NextPage == 0 {
 			break
 		}
+
 		opts.Page = resp.NextPage
 	}
 

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -19,6 +20,13 @@ import (
 	"github.com/jon/claude-afk/internal/worker"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
+)
+
+var (
+	// ErrNoGitHubToken is returned when no GitHub token is available.
+	ErrNoGitHubToken = errors.New("no GitHub token found (set GITHUB_TOKEN or run 'gh auth login')")
+	// ErrNoRepo is returned when no org/repo is specified and detection fails.
+	ErrNoRepo = errors.New("no --org or --repo specified and not in a git repo")
 )
 
 var cfg = config.DefaultCLIConfig()
@@ -49,22 +57,27 @@ func githubToken() string {
 	if tok := os.Getenv("GITHUB_TOKEN"); tok != "" {
 		return tok
 	}
-	out, err := exec.Command("gh", "auth", "token").Output()
+
+	out, err := exec.CommandContext(context.Background(), "gh", "auth", "token").Output()
 	if err == nil {
 		return strings.TrimSpace(string(out))
 	}
+
 	return ""
 }
 
 func runWatch(cmd *cobra.Command, args []string) error {
 	// Logging
 	opts := &slog.HandlerOptions{Level: slog.LevelInfo}
+
 	if cfg.LogFile != "" {
 		f, err := os.OpenFile(cfg.LogFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 		if err != nil {
 			return fmt.Errorf("open log file: %w", err)
 		}
-		defer f.Close()
+
+		defer func() { _ = f.Close() }()
+
 		slog.SetDefault(slog.New(slog.NewTextHandler(f, opts)))
 	} else {
 		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, opts)))
@@ -75,38 +88,51 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	if ntfyTopic == "" {
 		ntfyTopic = os.Getenv("NTFY_TOPIC")
 	}
+
 	notifier := notify.New(ntfyTopic)
 
 	// GitHub client
 	token := githubToken()
 	if token == "" {
-		return fmt.Errorf("no GitHub token found (set GITHUB_TOKEN or run 'gh auth login')")
+		return ErrNoGitHubToken
 	}
+
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	ghClient := github.NewClient(oauth2.NewClient(context.Background(), ts))
 
 	// Resolve repo from current dir if needed
 	if cfg.Org == "" && cfg.Repo == "" {
-		out, err := exec.Command("gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner").Output()
+		out, err := exec.CommandContext(context.Background(), "gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner").Output()
 		if err != nil {
-			return fmt.Errorf("no --org or --repo specified and not in a git repo")
+			return ErrNoRepo
 		}
+
 		cfg.Repo = strings.TrimSpace(string(out))
 	}
 
 	// State
 	home, _ := os.UserHomeDir()
+
 	stateDir := home + "/.claude-afk"
-	os.MkdirAll(stateDir, 0755)
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		return fmt.Errorf("mkdir state dir: %w", err)
+	}
+
 	st, err := state.Load(stateDir + "/state.json")
 	if err != nil {
 		return fmt.Errorf("load state: %w", err)
 	}
+
 	st.RecoverCrashed()
-	st.Save()
+
+	if err := st.Save(); err != nil {
+		return fmt.Errorf("save state: %w", err)
+	}
 
 	// Workspace
-	os.MkdirAll(cfg.Workspace, 0755)
+	if err := os.MkdirAll(cfg.Workspace, 0755); err != nil {
+		return fmt.Errorf("mkdir workspace: %w", err)
+	}
 
 	// Poller
 	p := &poller.Poller{
@@ -121,6 +147,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	defer cancel()
 
 	sem := make(chan struct{}, cfg.Workers)
+
 	var repoLocks sync.Map
 
 	mode := "current repo"
@@ -129,6 +156,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	} else if cfg.Repo != "" {
 		mode = cfg.Repo
 	}
+
 	slog.Info("starting claude-afk",
 		"mode", mode, "label", cfg.Label,
 		"strategy", cfg.Strategy, "interval", cfg.Interval,
@@ -156,12 +184,12 @@ func runWatch(cmd *cobra.Command, args []string) error {
 				}
 
 				lockI, _ := repoLocks.LoadOrStore(repo, &sync.Mutex{})
+
 				repoMu := lockI.(*sync.Mutex)
 				if !repoMu.TryLock() {
 					continue
 				}
 
-				repo, issue := repo, issue
 				sem <- struct{}{}
 
 				go func() {

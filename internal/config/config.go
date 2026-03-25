@@ -49,13 +49,16 @@ func DefaultCLIConfig() CLIConfig {
 // It looks for a <!-- claude-afk ... --> HTML comment block containing YAML.
 func ParseIssueConfig(body string) IssueConfig {
 	var cfg IssueConfig
+
 	m := issueConfigRe.FindStringSubmatch(body)
 	if len(m) < 2 {
 		return cfg
 	}
+
 	if err := yaml.Unmarshal([]byte(m[1]), &cfg); err != nil {
 		slog.Warn("malformed claude-afk config in issue body", "error", err)
 	}
+
 	return cfg
 }
 
@@ -64,6 +67,7 @@ func ResolveStrategy(cli CLIConfig, issue IssueConfig) string {
 	if issue.Strategy != "" {
 		return issue.Strategy
 	}
+
 	return cli.Strategy
 }
 
@@ -72,6 +76,7 @@ func ResolveBranch(issue IssueConfig, issueNumber int) string {
 	if issue.Branch != "" {
 		return issue.Branch
 	}
+
 	return "claude-afk/issue-" + strconv.Itoa(issueNumber)
 }
 
@@ -80,5 +85,6 @@ func defaultWorkspace() string {
 	if err != nil {
 		return ".claude-afk/repos"
 	}
+
 	return filepath.Join(home, ".claude-afk", "repos")
 }

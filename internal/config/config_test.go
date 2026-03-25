@@ -22,6 +22,7 @@ More text.`
 	if cfg.Strategy != "commit" {
 		t.Errorf("strategy: got %q, want %q", cfg.Strategy, "commit")
 	}
+
 	if cfg.Branch != "my-feature" {
 		t.Errorf("branch: got %q, want %q", cfg.Branch, "my-feature")
 	}
@@ -29,10 +30,12 @@ More text.`
 
 func TestParseIssueConfig_Empty(t *testing.T) {
 	body := "Just a normal issue body with no config block."
+
 	cfg := ParseIssueConfig(body)
 	if cfg.Strategy != "" {
 		t.Errorf("strategy: got %q, want empty", cfg.Strategy)
 	}
+
 	if cfg.Branch != "" {
 		t.Errorf("branch: got %q, want empty", cfg.Branch)
 	}
@@ -47,6 +50,7 @@ strategy: worktree
 	if cfg.Strategy != "worktree" {
 		t.Errorf("strategy: got %q, want %q", cfg.Strategy, "worktree")
 	}
+
 	if cfg.Branch != "" {
 		t.Errorf("branch: got %q, want empty", cfg.Branch)
 	}
@@ -64,6 +68,7 @@ another: thing
 	if cfg.Strategy != "pr" {
 		t.Errorf("strategy: got %q, want %q", cfg.Strategy, "pr")
 	}
+
 	if cfg.Branch != "fix-123" {
 		t.Errorf("branch: got %q, want %q", cfg.Branch, "fix-123")
 	}
@@ -99,6 +104,7 @@ func TestParseIssueConfig_MalformedYAML(t *testing.T) {
 	body := `<!-- claude-afk
 strategy: [broken
 -->`
+
 	cfg := ParseIssueConfig(body)
 	if cfg.Strategy != "" {
 		t.Errorf("expected empty strategy on malformed YAML, got %q", cfg.Strategy)
@@ -108,6 +114,7 @@ strategy: [broken
 func TestDefaultConfig_WorkspaceUsesHomeDir(t *testing.T) {
 	cfg := DefaultCLIConfig()
 	home, _ := os.UserHomeDir()
+
 	expected := filepath.Join(home, ".claude-afk", "repos")
 	if cfg.Workspace != expected {
 		t.Errorf("workspace: got %q, want %q", cfg.Workspace, expected)
@@ -116,6 +123,7 @@ func TestDefaultConfig_WorkspaceUsesHomeDir(t *testing.T) {
 
 func TestResolveStrategy_IssueOverrides(t *testing.T) {
 	cli := DefaultCLIConfig()
+
 	issue := IssueConfig{Strategy: "commit"}
 	if got := ResolveStrategy(cli, issue); got != "commit" {
 		t.Errorf("got %q, want %q", got, "commit")
@@ -124,6 +132,7 @@ func TestResolveStrategy_IssueOverrides(t *testing.T) {
 
 func TestResolveStrategy_FallbackToCLI(t *testing.T) {
 	cli := DefaultCLIConfig()
+
 	issue := IssueConfig{}
 	if got := ResolveStrategy(cli, issue); got != "pr" {
 		t.Errorf("got %q, want %q", got, "pr")

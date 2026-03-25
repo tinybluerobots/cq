@@ -9,10 +9,12 @@ import (
 
 func TestStore_LoadEmpty(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nonexistent.json")
+
 	store, err := Load(path)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
+
 	if len(store.Issues) != 0 {
 		t.Fatalf("expected empty issues, got %d", len(store.Issues))
 	}
@@ -36,18 +38,23 @@ func TestStore_SetAndGet(t *testing.T) {
 	if !ok {
 		t.Fatal("expected key to exist")
 	}
+
 	if got.Status != want.Status {
 		t.Errorf("Status = %q, want %q", got.Status, want.Status)
 	}
+
 	if got.Attempts != want.Attempts {
 		t.Errorf("Attempts = %d, want %d", got.Attempts, want.Attempts)
 	}
+
 	if !got.LastAttempt.Equal(want.LastAttempt) {
 		t.Errorf("LastAttempt = %v, want %v", got.LastAttempt, want.LastAttempt)
 	}
+
 	if got.PRURL != want.PRURL {
 		t.Errorf("PRURL = %q, want %q", got.PRURL, want.PRURL)
 	}
+
 	if got.Error != want.Error {
 		t.Errorf("Error = %q, want %q", got.Error, want.Error)
 	}
@@ -77,9 +84,11 @@ func TestStore_SaveAndReload(t *testing.T) {
 	if !ok {
 		t.Fatal("expected key to exist after reload")
 	}
+
 	if got.Status != want.Status {
 		t.Errorf("Status = %q, want %q", got.Status, want.Status)
 	}
+
 	if got.PRURL != want.PRURL {
 		t.Errorf("PRURL = %q, want %q", got.PRURL, want.PRURL)
 	}
@@ -99,10 +108,12 @@ func TestStore_RecoverInProgress(t *testing.T) {
 	if got.Status != StatusPending {
 		t.Errorf("in_progress should become pending, got %q", got.Status)
 	}
+
 	got, _ = store.Get("b")
 	if got.Status != StatusCompleted {
 		t.Errorf("completed should stay completed, got %q", got.Status)
 	}
+
 	got, _ = store.Get("c")
 	if got.Status != StatusFailed {
 		t.Errorf("failed should stay failed, got %q", got.Status)
@@ -133,6 +144,7 @@ func TestStore_ShouldProcess(t *testing.T) {
 			if tt.state != nil {
 				store.Set(tt.key, *tt.state)
 			}
+
 			if got := store.ShouldProcess(tt.key, tt.maxRetries); got != tt.want {
 				t.Errorf("ShouldProcess(%q, %d) = %v, want %v", tt.key, tt.maxRetries, got, tt.want)
 			}
@@ -150,6 +162,7 @@ func TestStore_CorruptFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error on corrupt file, got %v", err)
 	}
+
 	if len(store.Issues) != 0 {
 		t.Fatalf("expected empty issues on corrupt file, got %d", len(store.Issues))
 	}
