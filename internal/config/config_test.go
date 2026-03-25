@@ -1,6 +1,9 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -79,7 +82,8 @@ func TestDefaultConfig(t *testing.T) {
 		{"workers", cfg.Workers, 5},
 		{"max-retries", cfg.MaxRetries, 3},
 		{"label", cfg.Label, "claude-afk"},
-		{"workspace", cfg.Workspace, "~/.claude-afk/repos"},
+		{"workspace-has-claude-afk", strings.Contains(cfg.Workspace, ".claude-afk/repos"), true},
+		{"workspace-no-tilde", strings.HasPrefix(cfg.Workspace, "~"), false},
 	}
 
 	for _, tt := range tests {
@@ -88,6 +92,25 @@ func TestDefaultConfig(t *testing.T) {
 				t.Errorf("got %v, want %v", tt.got, tt.want)
 			}
 		})
+	}
+}
+
+func TestParseIssueConfig_MalformedYAML(t *testing.T) {
+	body := `<!-- claude-afk
+strategy: [broken
+-->`
+	cfg := ParseIssueConfig(body)
+	if cfg.Strategy != "" {
+		t.Errorf("expected empty strategy on malformed YAML, got %q", cfg.Strategy)
+	}
+}
+
+func TestDefaultConfig_WorkspaceUsesHomeDir(t *testing.T) {
+	cfg := DefaultCLIConfig()
+	home, _ := os.UserHomeDir()
+	expected := filepath.Join(home, ".claude-afk", "repos")
+	if cfg.Workspace != expected {
+		t.Errorf("workspace: got %q, want %q", cfg.Workspace, expected)
 	}
 }
 

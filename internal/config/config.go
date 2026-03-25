@@ -1,6 +1,9 @@
 package config
 
 import (
+	"log/slog"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"time"
@@ -38,7 +41,7 @@ func DefaultCLIConfig() CLIConfig {
 		Interval:   30 * time.Second,
 		Workers:    5,
 		MaxRetries: 3,
-		Workspace:  "~/.claude-afk/repos",
+		Workspace:  defaultWorkspace(),
 	}
 }
 
@@ -50,7 +53,9 @@ func ParseIssueConfig(body string) IssueConfig {
 	if len(m) < 2 {
 		return cfg
 	}
-	_ = yaml.Unmarshal([]byte(m[1]), &cfg)
+	if err := yaml.Unmarshal([]byte(m[1]), &cfg); err != nil {
+		slog.Warn("malformed claude-afk config in issue body", "error", err)
+	}
 	return cfg
 }
 
@@ -68,4 +73,12 @@ func ResolveBranch(issue IssueConfig, issueNumber int) string {
 		return issue.Branch
 	}
 	return "claude-afk/issue-" + strconv.Itoa(issueNumber)
+}
+
+func defaultWorkspace() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ".claude-afk/repos"
+	}
+	return filepath.Join(home, ".claude-afk", "repos")
 }
