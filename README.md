@@ -112,8 +112,8 @@ Use `--command` to swap Claude for any CLI tool. By default, the prompt is passe
 # Use GitHub Copilot
 cq --local --command "copilot -p {prompt} --yolo"
 
-# Use a different AI CLI
-cq --local --command "gemini --prompt"
+# Use Google Gemini CLI
+cq --local --command "gemini -p {prompt} --yolo"
 
 # Pipe to a script
 cq --local --command "./my-issue-handler.sh"
