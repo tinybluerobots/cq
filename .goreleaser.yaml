@@ -15,11 +15,20 @@ builds:
       - -s -w -X github.com/tinybluerobots/issuebot/cmd.Version={{.Version}}
 
 archives:
-  - format: tar.gz
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats:
+      - tar.gz
 
 checksum:
   name_template: checksums.txt
+
+homebrew_casks:
+  - repository:
+      owner: tinybluerobots
+      name: homebrew-tap
+    homepage: https://github.com/tinybluerobots/issuebot
+    description: Autonomous GitHub issue processor powered by any CLI tool
+    license: MIT
 
 changelog:
   sort: asc

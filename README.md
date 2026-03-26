@@ -6,6 +6,12 @@ Autonomous GitHub issue processor powered by any CLI tool. Watches repos for ope
 
 ## Install
 
+Via [Homebrew](https://brew.sh):
+
+```bash
+brew install tinybluerobots/tap/issuebot
+```
+
 Via [mise](https://mise.jdx.dev):
 
 ```bash
