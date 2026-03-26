@@ -93,10 +93,21 @@ func (w *Worker) RunCommand(ctx context.Context, workDir, prompt string) (string
 }
 
 func (w *Worker) runCustomCommand(ctx context.Context, workDir, prompt string) (string, error) {
-	cmd := exec.CommandContext(ctx, "sh", "-c", w.CLIConfig.Command)
+	cmdStr := w.CLIConfig.Command
+
+	// If {prompt} placeholder is present, substitute it and don't pipe stdin.
+	useStdin := !strings.Contains(cmdStr, "{prompt}")
+	if !useStdin {
+		cmdStr = strings.ReplaceAll(cmdStr, "{prompt}", shellescape(prompt))
+	}
+
+	cmd := exec.CommandContext(ctx, "sh", "-c", cmdStr)
 	cmd.Dir = workDir
-	cmd.Stdin = strings.NewReader(prompt)
 	cmd.Stderr = os.Stderr
+
+	if useStdin {
+		cmd.Stdin = strings.NewReader(prompt)
+	}
 
 	out, err := cmd.Output()
 	if err != nil {
@@ -104,6 +115,11 @@ func (w *Worker) runCustomCommand(ctx context.Context, workDir, prompt string) (
 	}
 
 	return strings.TrimSpace(string(out)), nil
+}
+
+// shellescape wraps a string in single quotes for safe shell interpolation.
+func shellescape(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
 }
 
 // streamJSON represents a line of Claude's stream-json output.
@@ -301,6 +317,7 @@ func (w *Worker) runPostCommand(ctx context.Context, logger *slog.Logger, postCo
 	}
 
 	cmd := exec.CommandContext(ctx, "sh", "-c", postCommand)
+
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("PR_URL=%s", prURL),
 		fmt.Sprintf("PR_NUMBER=%d", prNumber),

@@ -19,6 +19,11 @@ import (
 	"github.com/tinybluerobots/cq/internal/state"
 )
 
+const (
+	testClaudeOutput = `{"type":"result","result":"ISSUE_RESOLVED #1"}`
+	testIssueTitle   = "Test issue"
+)
+
 func mockClaude(t *testing.T, dir string, output string, exitCode int) string {
 	t.Helper()
 
@@ -124,7 +129,7 @@ func TestWorker_RunCommand_Claude_Success(t *testing.T) {
 	w := testWorker(t)
 	dir := t.TempDir()
 
-	resultJSON := `{"type":"result","result":"ISSUE_RESOLVED #1"}`
+	resultJSON := testClaudeOutput
 	w.ClaudePath = mockClaude(t, dir, resultJSON, 0)
 
 	result, err := w.RunCommand(context.Background(), dir, "fix the thing")
@@ -161,6 +166,36 @@ func TestWorker_RunCommand_Custom(t *testing.T) {
 
 	if result != "hello from stdin" {
 		t.Errorf("result = %q, want %q", result, "hello from stdin")
+	}
+}
+
+func TestWorker_RunCommand_PromptPlaceholder(t *testing.T) {
+	w := testWorker(t)
+	w.CLIConfig.Command = "echo {prompt}"
+	dir := t.TempDir()
+
+	result, err := w.RunCommand(context.Background(), dir, "fix the bug")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result != "fix the bug" {
+		t.Errorf("result = %q, want %q", result, "fix the bug")
+	}
+}
+
+func TestWorker_RunCommand_PromptPlaceholder_QuotesHandled(t *testing.T) {
+	w := testWorker(t)
+	w.CLIConfig.Command = "echo {prompt}"
+	dir := t.TempDir()
+
+	result, err := w.RunCommand(context.Background(), dir, "it's a test")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result != "it's a test" {
+		t.Errorf("result = %q, want %q", result, "it's a test")
 	}
 }
 
@@ -203,7 +238,7 @@ func TestWorker_ProcessIssue_PRStrategy(t *testing.T) {
 	storePath := filepath.Join(dir, "state.json")
 	st, _ := state.Load(storePath)
 
-	claudeOutput := `{"type":"result","result":"ISSUE_RESOLVED #1"}`
+	claudeOutput := testClaudeOutput
 	claudePath := mockClaude(t, dir, claudeOutput, 0)
 
 	promptFile := filepath.Join(dir, "prompt.tmpl")
@@ -222,7 +257,7 @@ func TestWorker_ProcessIssue_PRStrategy(t *testing.T) {
 	}
 
 	issueNum := 1
-	issueTitle := "Test issue"
+	issueTitle := testIssueTitle
 	issueBody := "Fix something"
 	issue := &github.Issue{
 		Number: &issueNum,
@@ -249,7 +284,7 @@ func TestWorker_ProcessIssue_DryRun(t *testing.T) {
 	storePath := filepath.Join(dir, "state.json")
 	st, _ := state.Load(storePath)
 
-	claudeOutput := `{"type":"result","result":"ISSUE_RESOLVED #1"}`
+	claudeOutput := testClaudeOutput
 	claudePath := mockClaude(t, dir, claudeOutput, 0)
 
 	promptFile := filepath.Join(dir, "prompt.tmpl")
@@ -267,7 +302,7 @@ func TestWorker_ProcessIssue_DryRun(t *testing.T) {
 	}
 
 	issueNum := 1
-	issueTitle := "Test issue"
+	issueTitle := testIssueTitle
 	issueBody := "Fix something"
 	issue := &github.Issue{
 		Number: &issueNum,
@@ -305,8 +340,10 @@ func TestWorker_ProcessIssue_PostCommand(t *testing.T) {
 			if err := json.NewEncoder(w).Encode([]*github.PullRequest{}); err != nil {
 				t.Errorf("encode: %v", err)
 			}
+
 			return
 		}
+
 		pr := &github.PullRequest{Number: &prNum, HTMLURL: &prURL}
 		if err := json.NewEncoder(w).Encode(pr); err != nil {
 			t.Errorf("encode: %v", err)
@@ -321,7 +358,7 @@ func TestWorker_ProcessIssue_PostCommand(t *testing.T) {
 	storePath := filepath.Join(dir, "state.json")
 	st, _ := state.Load(storePath)
 
-	claudeOutput := `{"type":"result","result":"ISSUE_RESOLVED #1"}`
+	claudeOutput := testClaudeOutput
 	claudePath := mockClaude(t, dir, claudeOutput, 0)
 
 	promptFile := filepath.Join(dir, "prompt.tmpl")
@@ -343,7 +380,7 @@ func TestWorker_ProcessIssue_PostCommand(t *testing.T) {
 	}
 
 	issueNum := 1
-	issueTitle := "Test issue"
+	issueTitle := testIssueTitle
 	issue := &github.Issue{
 		Number: &issueNum,
 		Title:  &issueTitle,

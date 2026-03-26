@@ -2,15 +2,17 @@ package ratelimit
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/go-github/v69/github"
 )
 
+var errGeneric = fmt.Errorf("some error")
+
 func TestWait_NotRateLimited(t *testing.T) {
-	if Wait(context.Background(), errors.New("some error")) {
+	if Wait(context.Background(), errGeneric) {
 		t.Error("expected false for non-rate-limit error")
 	}
 }

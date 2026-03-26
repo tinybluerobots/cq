@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 	"sync"
@@ -44,7 +45,7 @@ func Load(path string) (*Store, error) {
 			return s, nil
 		}
 
-		return s, nil
+		return s, fmt.Errorf("read state file: %w", err)
 	}
 
 	if err := json.Unmarshal(data, s); err != nil {
@@ -67,6 +68,7 @@ func (s *Store) Save() error {
 	// Back up current file before overwriting.
 	if _, err := os.Stat(s.path); err == nil {
 		bakPath := s.path + ".bak"
+
 		data, err := os.ReadFile(s.path)
 		if err == nil {
 			_ = os.WriteFile(bakPath, data, 0644)
@@ -127,7 +129,7 @@ func loadBackup(path string) (*Store, error) {
 	data, err := os.ReadFile(bakPath)
 	if err != nil {
 		slog.Warn("no backup available, starting fresh", "path", bakPath)
-		return s, nil
+		return s, nil //nolint:nilerr // intentional: missing backup means start fresh
 	}
 
 	if err := json.Unmarshal(data, s); err != nil {
