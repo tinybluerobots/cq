@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSend_Success(t *testing.T) {
@@ -28,30 +31,18 @@ func TestSend_Success(t *testing.T) {
 	n := &Notifier{BaseURL: srv.URL, Topic: "test-topic"}
 
 	err := n.Send(context.Background(), "hello world")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
-	if gotMethod != http.MethodPost {
-		t.Errorf("method = %q, want POST", gotMethod)
-	}
-
-	if gotContentType != "text/plain" {
-		t.Errorf("content-type = %q, want text/plain", gotContentType)
-	}
-
-	if gotBody != "hello world" {
-		t.Errorf("body = %q, want %q", gotBody, "hello world")
-	}
+	assert.Equal(t, http.MethodPost, gotMethod)
+	assert.Equal(t, "text/plain", gotContentType)
+	assert.Equal(t, "hello world", gotBody)
 }
 
 func TestSend_NoTopic(t *testing.T) {
 	n := New("")
 
 	err := n.Send(context.Background(), "should not send")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 	// No HTTP call made — if topic is empty, it's a no-op.
 }
 
@@ -64,7 +55,5 @@ func TestSend_ServerError(t *testing.T) {
 	n := &Notifier{BaseURL: srv.URL, Topic: "test-topic"}
 
 	err := n.Send(context.Background(), "fail please")
-	if err == nil {
-		t.Fatal("expected error for 500 response, got nil")
-	}
+	require.Error(t, err)
 }
