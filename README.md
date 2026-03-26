@@ -106,7 +106,7 @@ On first run, cq writes a default prompt template to `~/.cq/prompt.tmpl`. Edit i
 
 ## Custom Commands
 
-Use `--command` to swap Claude for any CLI tool. The prompt is passed via stdin, or use `{prompt}` as a placeholder to pass it as an argument:
+Use `--command` to swap Claude for any CLI tool. By default, the prompt is passed via stdin. If your tool needs it as an argument, use `{prompt}` as a placeholder (stdin is not used when `{prompt}` is present):
 
 ```bash
 # Use GitHub Copilot
