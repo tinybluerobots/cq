@@ -22,7 +22,7 @@ archives:
 checksum:
   name_template: checksums.txt
 
-brews:
+homebrew_casks:
   - repository:
       owner: tinybluerobots
       name: homebrew-tap
