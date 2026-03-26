@@ -47,8 +47,8 @@ issuebot --repo owner/repo --label bug --command "claude -p {prompt} --dangerous
 # Preview what the command would do without pushing
 issuebot --repo owner/repo --dry-run --command "claude -p {prompt} --dangerously-skip-permissions"
 
-# Push fixes directly instead of opening PRs
-issuebot --repo owner/repo --strategy commit --command "copilot -p {prompt} --yolo"
+# Open PRs instead of pushing directly
+issuebot --repo owner/repo --strategy pr --command "copilot -p {prompt} --yolo"
 
 # Poll every 5 minutes with 10 workers
 issuebot --org myorg --interval 5m --workers 10 --command "gemini -p {prompt} --yolo"
