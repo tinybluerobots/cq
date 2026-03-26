@@ -33,8 +33,8 @@ type Worker struct {
 }
 
 // BuildPrompt renders the prompt template for a given issue.
-func (w *Worker) BuildPrompt(repo string, issue *github.Issue) (string, error) {
-	return prompt.Render(w.CLIConfig.PromptFile, repo, issue)
+func (w *Worker) BuildPrompt(repo string, issue *github.Issue, defaultBranch string) (string, error) {
+	return prompt.Render(w.CLIConfig.PromptFile, repo, issue, defaultBranch)
 }
 
 // EnsureRepo clones a repository if it doesn't exist, or pulls latest changes.
@@ -224,7 +224,7 @@ func (w *Worker) ProcessIssue(ctx context.Context, repo string, issue *github.Is
 	}
 
 	// Run command.
-	prompt, err := w.BuildPrompt(repo, issue)
+	prompt, err := w.BuildPrompt(repo, issue, "main")
 	if err != nil {
 		w.fail(ctx, key, logger, fmt.Sprintf("build prompt: %v", err))
 		return

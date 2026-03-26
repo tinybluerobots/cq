@@ -108,7 +108,7 @@ func TestWorker_BuildPrompt(t *testing.T) {
 		Body:   &body,
 	}
 
-	p, err := w.BuildPrompt("myorg/myrepo", issue)
+	p, err := w.BuildPrompt("myorg/myrepo", issue, "main")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
