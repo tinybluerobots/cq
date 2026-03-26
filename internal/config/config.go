@@ -42,7 +42,7 @@ var issueConfigRe = regexp.MustCompile(`(?s)<!--\s*issuebot\s*\n(.*?)\n-->`)
 func DefaultCLIConfig() CLIConfig {
 	return CLIConfig{
 		Label:      "",
-		Strategy:   "pr",
+		Strategy:   "commit",
 		Interval:   30 * time.Second,
 		Workers:    5,
 		MaxRetries: 3,
@@ -62,7 +62,7 @@ func ParseIssueConfig(body string) IssueConfig {
 	}
 
 	if err := yaml.Unmarshal([]byte(m[1]), &cfg); err != nil {
-		slog.Warn("malformed cq config in issue body", "error", err)
+		slog.Warn("malformed issuebot config in issue body", "error", err)
 	}
 
 	return cfg

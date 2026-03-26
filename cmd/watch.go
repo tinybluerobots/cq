@@ -164,7 +164,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 		target = cfg.Repo
 	}
 
-	slog.Info("starting cq",
+	slog.Info("starting issuebot",
 		"target", target, "label", cfg.Label,
 		"strategy", cfg.Strategy, "interval", cfg.Interval,
 		"workers", cfg.Workers,

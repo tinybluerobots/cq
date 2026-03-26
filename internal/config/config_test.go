@@ -82,7 +82,7 @@ func TestDefaultConfig(t *testing.T) {
 		got  interface{}
 		want interface{}
 	}{
-		{"strategy", cfg.Strategy, "pr"},
+		{"strategy", cfg.Strategy, "commit"},
 		{"interval", cfg.Interval, 30 * time.Second},
 		{"workers", cfg.Workers, 5},
 		{"max-retries", cfg.MaxRetries, 3},
@@ -134,8 +134,8 @@ func TestResolveStrategy_FallbackToCLI(t *testing.T) {
 	cli := DefaultCLIConfig()
 
 	issue := IssueConfig{}
-	if got := ResolveStrategy(cli, issue); got != "pr" {
-		t.Errorf("got %q, want %q", got, "pr")
+	if got := ResolveStrategy(cli, issue); got != "commit" {
+		t.Errorf("got %q, want %q", got, "commit")
 	}
 }
 
