@@ -12,7 +12,7 @@ var Version = "dev"
 
 var rootCmd = &cobra.Command{
 	Use:               "cq",
-	Short:             "Autonomous GitHub issue worker powered by Claude",
+	Short:             "Autonomous GitHub issue processor powered by any CLI tool",
 	Version:           Version,
 	CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
 	RunE:              runWatch,

@@ -29,7 +29,7 @@ type IssueState struct {
 type Store struct {
 	Issues map[string]IssueState `json:"issues"`
 	path   string
-	mu     sync.Mutex
+	mu     sync.RWMutex
 }
 
 // Load reads state from disk. Returns an empty store if the file is missing or corrupt.
@@ -98,8 +98,8 @@ func (s *Store) Set(key string, state IssueState) {
 
 // Get retrieves the state for a given issue key.
 func (s *Store) Get(key string) (IssueState, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	st, ok := s.Issues[key]
 
@@ -150,8 +150,8 @@ func loadBackup(path string) (*Store, error) {
 // ShouldProcess returns true if the issue should be processed.
 // Returns false for completed, in_progress, or failed with attempts >= maxRetries.
 func (s *Store) ShouldProcess(key string, maxRetries int) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	st, ok := s.Issues[key]
 	if !ok {

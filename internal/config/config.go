@@ -21,12 +21,12 @@ type CLIConfig struct {
 	Workers    int
 	MaxRetries int
 	Workspace  string
-	Local      bool
-	DryRun     bool
 	Command    string
 	PromptFile string
 	LogFile    string
 	NtfyTopic  string
+	Local      bool
+	DryRun     bool
 }
 
 // IssueConfig holds per-issue configuration extracted from issue body.

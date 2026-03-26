@@ -25,38 +25,38 @@ go build -o cq .
 ## Usage
 
 ```bash
-# Watch current directory's repo
-cq
+# Watch current directory's repo with Claude
+cq --command "claude -p {prompt} --dangerously-skip-permissions"
 
 # Work directly in current directory (no clone)
-cq --local
+cq --local --command "claude -p {prompt} --dangerously-skip-permissions"
 
-# Watch a single repo
-cq --repo owner/repo
+# Watch a single repo with Copilot
+cq --repo owner/repo --command "copilot -p {prompt} --yolo"
 
-# Watch all repos in an org
-cq --org myorg
+# Watch all repos in an org with Gemini
+cq --org myorg --command "gemini -p {prompt} --yolo"
 
 # Only process issues labelled "cq"
-cq --repo owner/repo --label cq
+cq --repo owner/repo --label cq --command "claude -p {prompt} --dangerously-skip-permissions"
 
-# Preview what cq would do without pushing
-cq --repo owner/repo --dry-run
+# Preview what the command would do without pushing
+cq --repo owner/repo --dry-run --command "claude -p {prompt} --dangerously-skip-permissions"
 
 # Push fixes directly instead of opening PRs
-cq --repo owner/repo --strategy commit
-
-# Use a custom command instead of Claude
-cq --local --command "my-ai-tool"
+cq --repo owner/repo --strategy commit --command "copilot -p {prompt} --yolo"
 
 # Poll every 5 minutes with 10 workers
-cq --org myorg --interval 5m --workers 10
+cq --org myorg --interval 5m --workers 10 --command "gemini -p {prompt} --yolo"
 
 # Get notified on failures via ntfy.sh
-cq --repo owner/repo --ntfy-topic my-alerts
+cq --repo owner/repo --ntfy-topic my-alerts --command "copilot -p {prompt} --yolo"
 
 # Log to a file for background operation
-cq --org myorg --log-file ~/.cq/cq.log
+cq --org myorg --log-file ~/.cq/cq.log --command "claude -p {prompt} --dangerously-skip-permissions"
+
+# Use any command that reads from stdin
+cq --local --command "./my-issue-handler.sh"
 ```
 
 ### Flags
@@ -71,7 +71,7 @@ cq --org myorg --log-file ~/.cq/cq.log
 | `--workers` | `5` | Max concurrent repo workers |
 | `--workspace` | `~/.cq/repos` | Directory for cloned repos |
 | `--local` | `false` | Use current directory instead of cloning |
-| `--command` | | Custom command to run (prompt via stdin, default: Claude CLI) |
+| `--command` | **(required)** | Command to run (prompt via stdin or `{prompt}` placeholder) |
 | `--prompt-file` | `~/.cq/prompt.tmpl` | Path to prompt template file |
 | `--dry-run` | `false` | Run command but skip push/PR (print diff instead) |
 | `--max-retries` | `3` | Max retry attempts per issue |
@@ -106,19 +106,22 @@ On first run, cq writes a default prompt template to `~/.cq/prompt.tmpl`. Edit i
 | `{{.Labels}}` | Comma-separated list of issue labels |
 | `{{.DefaultBranch}}` | Repository default branch |
 
-## Custom Commands
+## Command Interface
 
-Use `--command` to swap Claude for any CLI tool. By default, the prompt is passed via stdin. If your tool needs it as an argument, use `{prompt}` as a placeholder (stdin is not used when `{prompt}` is present):
+The `--command` flag is required. By default, the prompt is passed via stdin. If your tool needs it as an argument, use `{prompt}` as a placeholder (stdin is not used when `{prompt}` is present):
 
 ```bash
-# Use GitHub Copilot
-cq --local --command "copilot -p {prompt} --yolo"
+# Claude Code
+cq --command "claude -p {prompt} --dangerously-skip-permissions"
 
-# Use Google Gemini CLI
-cq --local --command "gemini -p {prompt} --yolo"
+# GitHub Copilot
+cq --command "copilot -p {prompt} --yolo"
 
-# Pipe to a script
-cq --local --command "./my-issue-handler.sh"
+# Google Gemini CLI
+cq --command "gemini -p {prompt} --yolo"
+
+# Any tool that reads stdin
+cq --command "./my-issue-handler.sh"
 ```
 
 ## Per-Issue Configuration

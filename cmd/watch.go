@@ -37,14 +37,17 @@ func init() {
 	f.StringVar(&cfg.Org, "org", cfg.Org, "GitHub organization")
 	f.StringVar(&cfg.Repo, "repo", cfg.Repo, "GitHub repository")
 	f.StringVar(&cfg.Label, "label", cfg.Label, "Issue label to watch")
-	f.StringVar(&cfg.Strategy, "strategy", cfg.Strategy, "Default strategy (pr, commit, worktree)")
+	f.StringVar(&cfg.Strategy, "strategy", cfg.Strategy, "Default strategy (pr, commit)")
 	f.DurationVar(&cfg.Interval, "interval", cfg.Interval, "Poll interval")
 	f.IntVar(&cfg.Workers, "workers", cfg.Workers, "Max concurrent workers")
 	f.IntVar(&cfg.MaxRetries, "max-retries", cfg.MaxRetries, "Max retries per issue")
 	f.StringVar(&cfg.Workspace, "workspace", cfg.Workspace, "Workspace directory for repo clones")
 	f.BoolVar(&cfg.Local, "local", cfg.Local, "Use current directory instead of cloning")
 	f.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "Run command but skip push/PR (print diff instead)")
-	f.StringVar(&cfg.Command, "command", cfg.Command, "Command to run (prompt via stdin, default: claude)")
+	f.StringVar(&cfg.Command, "command", cfg.Command, "Command to run (prompt via stdin or {prompt} placeholder)")
+
+	_ = rootCmd.MarkFlagRequired("command")
+
 	f.StringVar(&cfg.PromptFile, "prompt-file", cfg.PromptFile, "Path to prompt template file")
 	f.StringVar(&cfg.LogFile, "log-file", cfg.LogFile, "Log file path")
 	f.StringVar(&cfg.NtfyTopic, "ntfy-topic", cfg.NtfyTopic, "ntfy.sh topic for notifications")
@@ -207,7 +210,6 @@ func runWatch(cmd *cobra.Command, args []string) error {
 						State:     st,
 						Notifier:  notifier,
 						CLIConfig: cfg,
-						Workspace: cfg.Workspace,
 					}
 					w.ProcessIssue(ctx, repo, issue)
 				}()

@@ -1,9 +1,7 @@
 package worker
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -21,15 +19,13 @@ import (
 	"github.com/tinybluerobots/cq/internal/state"
 )
 
-// Worker processes GitHub issues by invoking the Claude CLI.
+// Worker processes GitHub issues by invoking a configured command.
 type Worker struct {
-	Client     *github.Client
-	State      *state.Store
-	Notifier   *notify.Notifier
-	CLIConfig  config.CLIConfig
-	Workspace  string
-	ClaudePath string // path to claude binary, defaults to "claude"
-	CloneURL   string // override clone URL for testing (use local dir)
+	Client    *github.Client
+	State     *state.Store
+	Notifier  *notify.Notifier
+	CLIConfig config.CLIConfig
+	CloneURL  string // override clone URL for testing (use local dir)
 }
 
 // BuildPrompt renders the prompt template for a given issue.
@@ -39,7 +35,7 @@ func (w *Worker) BuildPrompt(repo string, issue *github.Issue, defaultBranch str
 
 // EnsureRepo clones a repository if it doesn't exist, or pulls latest changes.
 func (w *Worker) EnsureRepo(ctx context.Context, cloneURL, repo string) (string, error) {
-	repoDir := filepath.Join(w.Workspace, repo)
+	repoDir := filepath.Join(w.CLIConfig.Workspace, repo)
 
 	if _, err := os.Stat(filepath.Join(repoDir, ".git")); os.IsNotExist(err) {
 		return w.cloneRepo(ctx, cloneURL, repoDir)
@@ -82,17 +78,10 @@ func (w *Worker) pullRepo(ctx context.Context, repoDir string) (string, error) {
 	return repoDir, nil
 }
 
-// RunCommand executes the configured command with the prompt on stdin.
-// If no command is configured, it defaults to the Claude CLI.
+// RunCommand executes the configured command with the prompt.
+// If the command contains {prompt}, the prompt is substituted as an argument.
+// Otherwise, the prompt is passed via stdin.
 func (w *Worker) RunCommand(ctx context.Context, workDir, prompt string) (string, error) {
-	if w.CLIConfig.Command != "" {
-		return w.runCustomCommand(ctx, workDir, prompt)
-	}
-
-	return w.runClaude(ctx, workDir, prompt)
-}
-
-func (w *Worker) runCustomCommand(ctx context.Context, workDir, prompt string) (string, error) {
 	cmdStr := w.CLIConfig.Command
 
 	// If {prompt} placeholder is present, substitute it and don't pipe stdin.
@@ -120,61 +109,6 @@ func (w *Worker) runCustomCommand(ctx context.Context, workDir, prompt string) (
 // shellescape wraps a string in single quotes for safe shell interpolation.
 func shellescape(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
-}
-
-// streamJSON represents a line of Claude's stream-json output.
-type streamJSON struct {
-	Type   string `json:"type"`
-	Result string `json:"result"`
-	Text   string `json:"text"`
-}
-
-func (w *Worker) runClaude(ctx context.Context, workDir, prompt string) (string, error) {
-	claudeBin := w.ClaudePath
-	if claudeBin == "" {
-		claudeBin = "claude"
-	}
-
-	cmd := exec.CommandContext(ctx, claudeBin, "-p", prompt, "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose")
-	cmd.Dir = workDir
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return "", fmt.Errorf("stdout pipe: %w", err)
-	}
-
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("start claude: %w", err)
-	}
-
-	var result string
-
-	scanner := bufio.NewScanner(stdout)
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		var msg streamJSON
-		if err := json.Unmarshal([]byte(line), &msg); err != nil {
-			continue
-		}
-
-		switch msg.Type {
-		case "assistant":
-			if msg.Text != "" {
-				slog.Info("claude", "text", msg.Text)
-			}
-		case "result":
-			result = msg.Result
-		}
-	}
-
-	if err := cmd.Wait(); err != nil {
-		return "", fmt.Errorf("claude exited with error: %w", err)
-	}
-
-	return result, nil
 }
 
 // ProcessIssue orchestrates the full issue processing flow.
@@ -212,7 +146,7 @@ func (w *Worker) ProcessIssue(ctx context.Context, repo string, issue *github.Is
 	if w.CLIConfig.Local {
 		repoDir, err = os.Getwd()
 		if err != nil {
-			w.fail(ctx, key, logger, fmt.Sprintf("getwd: %v", err))
+			w.fail(ctx, key, logger, attempts, fmt.Sprintf("getwd: %v", err))
 			return
 		}
 	} else {
@@ -223,7 +157,7 @@ func (w *Worker) ProcessIssue(ctx context.Context, repo string, issue *github.Is
 
 		repoDir, err = w.EnsureRepo(ctx, cloneURL, repo)
 		if err != nil {
-			w.fail(ctx, key, logger, fmt.Sprintf("ensure repo: %v", err))
+			w.fail(ctx, key, logger, attempts, fmt.Sprintf("ensure repo: %v", err))
 			return
 		}
 	}
@@ -234,7 +168,7 @@ func (w *Worker) ProcessIssue(ctx context.Context, repo string, issue *github.Is
 
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
-			w.fail(ctx, key, logger, fmt.Sprintf("checkout branch: %v", err))
+			w.fail(ctx, key, logger, attempts, fmt.Sprintf("checkout branch: %v", err))
 			return
 		}
 	}
@@ -242,19 +176,19 @@ func (w *Worker) ProcessIssue(ctx context.Context, repo string, issue *github.Is
 	// Run command.
 	prompt, err := w.BuildPrompt(repo, issue, "main")
 	if err != nil {
-		w.fail(ctx, key, logger, fmt.Sprintf("build prompt: %v", err))
+		w.fail(ctx, key, logger, attempts, fmt.Sprintf("build prompt: %v", err))
 		return
 	}
 
 	result, err := w.RunCommand(ctx, repoDir, prompt)
 	if err != nil {
-		w.fail(ctx, key, logger, fmt.Sprintf("claude: %v", err))
+		w.fail(ctx, key, logger, attempts, fmt.Sprintf("command: %v", err))
 		return
 	}
 
 	// Check for failure marker.
 	if strings.Contains(result, "ISSUE_FAILED") {
-		w.fail(ctx, key, logger, fmt.Sprintf("claude reported failure: %s", result))
+		w.fail(ctx, key, logger, attempts, fmt.Sprintf("command reported failure: %s", result))
 		return
 	}
 
@@ -291,7 +225,7 @@ func (w *Worker) ProcessIssue(ctx context.Context, repo string, issue *github.Is
 
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
-			w.fail(ctx, key, logger, fmt.Sprintf("git push: %v", err))
+			w.fail(ctx, key, logger, attempts, fmt.Sprintf("git push: %v", err))
 			return
 		}
 
@@ -309,8 +243,7 @@ func (w *Worker) ProcessIssue(ctx context.Context, repo string, issue *github.Is
 	logger.Info("issue processed", "status", state.StatusCompleted)
 }
 
-// pushAndCreatePR pushes the branch and creates a pull request via the GitHub API.
-// It returns a non-nil error if any step failed (the failure is already recorded via w.fail).
+// runPostCommand executes a post-PR shell command with PR_URL and PR_NUMBER env vars.
 func (w *Worker) runPostCommand(ctx context.Context, logger *slog.Logger, postCommand, prURL string, prNumber int) {
 	if postCommand == "" {
 		return
@@ -335,13 +268,13 @@ func (w *Worker) pushAndCreatePR(ctx context.Context, key string, logger *slog.L
 
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		w.fail(ctx, key, logger, fmt.Sprintf("git push branch: %v", err))
+		w.fail(ctx, key, logger, attempts, fmt.Sprintf("git push branch: %v", err))
 		return err
 	}
 
 	parts := strings.SplitN(repo, "/", 2)
 	if len(parts) != 2 {
-		w.fail(ctx, key, logger, fmt.Sprintf("invalid repo format: %s", repo))
+		w.fail(ctx, key, logger, attempts, fmt.Sprintf("invalid repo format: %s", repo))
 		return fmt.Errorf("%w: %s", poller.ErrInvalidRepoFormat, repo)
 	}
 
@@ -395,7 +328,7 @@ func (w *Worker) pushAndCreatePR(ctx context.Context, key string, logger *slog.L
 		}
 
 		if err != nil {
-			w.fail(ctx, key, logger, fmt.Sprintf("create PR: %v", err))
+			w.fail(ctx, key, logger, attempts, fmt.Sprintf("create PR: %v", err))
 			return err
 		}
 	}
@@ -412,10 +345,9 @@ func (w *Worker) pushAndCreatePR(ctx context.Context, key string, logger *slog.L
 	return nil
 }
 
-func (w *Worker) fail(ctx context.Context, key string, logger *slog.Logger, reason string) {
+func (w *Worker) fail(ctx context.Context, key string, logger *slog.Logger, attempts int, reason string) {
 	logger.Error("issue processing failed", "reason", reason)
 
-	attempts := w.getAttempts(key)
 	w.State.Set(key, state.IssueState{
 		Status:      state.StatusFailed,
 		Attempts:    attempts,

@@ -20,14 +20,15 @@ import (
 )
 
 const (
-	testClaudeOutput = `{"type":"result","result":"ISSUE_RESOLVED #1"}`
-	testIssueTitle   = "Test issue"
+	testIssueTitle = "Test issue"
 )
 
-func mockClaude(t *testing.T, dir string, output string, exitCode int) string {
+// mockCommand creates a shell script that echoes output and exits with the given code.
+// Returns the path to the script, suitable for use as CLIConfig.Command.
+func mockCommand(t *testing.T, dir string, output string, exitCode int) string {
 	t.Helper()
 
-	script := filepath.Join(dir, "claude")
+	script := filepath.Join(dir, "mock-cmd")
 
 	content := fmt.Sprintf("#!/bin/bash\necho '%s'\nexit %d\n", output, exitCode)
 	if err := os.WriteFile(script, []byte(content), 0755); err != nil {
@@ -89,8 +90,7 @@ func testWorker(t *testing.T) *Worker {
 	return &Worker{
 		State:     st,
 		Notifier:  notify.New(""),
-		CLIConfig: config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile},
-		Workspace: filepath.Join(dir, "repos"),
+		CLIConfig: config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, Command: "cat"},
 	}
 }
 
@@ -125,12 +125,12 @@ func TestWorker_BuildPrompt(t *testing.T) {
 	}
 }
 
-func TestWorker_RunCommand_Claude_Success(t *testing.T) {
+func TestWorker_RunCommand_Success(t *testing.T) {
 	w := testWorker(t)
 	dir := t.TempDir()
 
-	resultJSON := testClaudeOutput
-	w.ClaudePath = mockClaude(t, dir, resultJSON, 0)
+	script := mockCommand(t, dir, "ISSUE_RESOLVED #1", 0)
+	w.CLIConfig.Command = script
 
 	result, err := w.RunCommand(context.Background(), dir, "fix the thing")
 	if err != nil {
@@ -142,11 +142,12 @@ func TestWorker_RunCommand_Claude_Success(t *testing.T) {
 	}
 }
 
-func TestWorker_RunCommand_Claude_Failure(t *testing.T) {
+func TestWorker_RunCommand_Failure(t *testing.T) {
 	w := testWorker(t)
 	dir := t.TempDir()
 
-	w.ClaudePath = mockClaude(t, dir, `{"type":"result","result":"nope"}`, 1)
+	script := mockCommand(t, dir, "nope", 1)
+	w.CLIConfig.Command = script
 
 	_, err := w.RunCommand(context.Background(), dir, "fix the thing")
 	if err == nil {
@@ -154,7 +155,7 @@ func TestWorker_RunCommand_Claude_Failure(t *testing.T) {
 	}
 }
 
-func TestWorker_RunCommand_Custom(t *testing.T) {
+func TestWorker_RunCommand_Stdin(t *testing.T) {
 	w := testWorker(t)
 	w.CLIConfig.Command = "cat"
 	dir := t.TempDir()
@@ -238,8 +239,7 @@ func TestWorker_ProcessIssue_PRStrategy(t *testing.T) {
 	storePath := filepath.Join(dir, "state.json")
 	st, _ := state.Load(storePath)
 
-	claudeOutput := testClaudeOutput
-	claudePath := mockClaude(t, dir, claudeOutput, 0)
+	cmdPath := mockCommand(t, dir, "ISSUE_RESOLVED", 0)
 
 	promptFile := filepath.Join(dir, "prompt.tmpl")
 	if err := prompt.EnsureFile(promptFile); err != nil {
@@ -247,13 +247,12 @@ func TestWorker_ProcessIssue_PRStrategy(t *testing.T) {
 	}
 
 	w := &Worker{
-		Client:     ghClient,
-		State:      st,
-		Notifier:   notify.New(""),
-		CLIConfig:  config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile},
-		Workspace:  filepath.Join(dir, "repos"),
-		ClaudePath: claudePath,
-		CloneURL:   bare,
+		Client:    ghClient,
+		State:     st,
+		Notifier:  notify.New(""),
+		CLIConfig: config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, Command: cmdPath},
+
+		CloneURL: bare,
 	}
 
 	issueNum := 1
@@ -284,8 +283,7 @@ func TestWorker_ProcessIssue_DryRun(t *testing.T) {
 	storePath := filepath.Join(dir, "state.json")
 	st, _ := state.Load(storePath)
 
-	claudeOutput := testClaudeOutput
-	claudePath := mockClaude(t, dir, claudeOutput, 0)
+	cmdPath := mockCommand(t, dir, "ISSUE_RESOLVED", 0)
 
 	promptFile := filepath.Join(dir, "prompt.tmpl")
 	if err := prompt.EnsureFile(promptFile); err != nil {
@@ -293,12 +291,11 @@ func TestWorker_ProcessIssue_DryRun(t *testing.T) {
 	}
 
 	w := &Worker{
-		State:      st,
-		Notifier:   notify.New(""),
-		CLIConfig:  config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, DryRun: true},
-		Workspace:  filepath.Join(dir, "repos"),
-		ClaudePath: claudePath,
-		CloneURL:   bare,
+		State:     st,
+		Notifier:  notify.New(""),
+		CLIConfig: config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, DryRun: true, Command: cmdPath},
+
+		CloneURL: bare,
 	}
 
 	issueNum := 1
@@ -358,8 +355,7 @@ func TestWorker_ProcessIssue_PostCommand(t *testing.T) {
 	storePath := filepath.Join(dir, "state.json")
 	st, _ := state.Load(storePath)
 
-	claudeOutput := testClaudeOutput
-	claudePath := mockClaude(t, dir, claudeOutput, 0)
+	cmdPath := mockCommand(t, dir, "ISSUE_RESOLVED", 0)
 
 	promptFile := filepath.Join(dir, "prompt.tmpl")
 	if err := prompt.EnsureFile(promptFile); err != nil {
@@ -370,13 +366,12 @@ func TestWorker_ProcessIssue_PostCommand(t *testing.T) {
 	issueBody := fmt.Sprintf("Fix something\n<!-- cq\npost-command: %s\n-->", postCmd)
 
 	w := &Worker{
-		Client:     ghClient,
-		State:      st,
-		Notifier:   notify.New(""),
-		CLIConfig:  config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile},
-		Workspace:  filepath.Join(dir, "repos"),
-		ClaudePath: claudePath,
-		CloneURL:   bare,
+		Client:    ghClient,
+		State:     st,
+		Notifier:  notify.New(""),
+		CLIConfig: config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, Command: cmdPath},
+
+		CloneURL: bare,
 	}
 
 	issueNum := 1
