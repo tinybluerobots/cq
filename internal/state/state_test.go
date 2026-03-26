@@ -5,19 +5,17 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStore_LoadEmpty(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nonexistent.json")
 
 	store, err := Load(path)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	if len(store.Issues) != 0 {
-		t.Fatalf("expected empty issues, got %d", len(store.Issues))
-	}
+	require.NoError(t, err)
+	assert.Empty(t, store.Issues)
 }
 
 func TestStore_SetAndGet(t *testing.T) {
@@ -35,29 +33,12 @@ func TestStore_SetAndGet(t *testing.T) {
 	store.Set("issue-1", want)
 
 	got, ok := store.Get("issue-1")
-	if !ok {
-		t.Fatal("expected key to exist")
-	}
-
-	if got.Status != want.Status {
-		t.Errorf("Status = %q, want %q", got.Status, want.Status)
-	}
-
-	if got.Attempts != want.Attempts {
-		t.Errorf("Attempts = %d, want %d", got.Attempts, want.Attempts)
-	}
-
-	if !got.LastAttempt.Equal(want.LastAttempt) {
-		t.Errorf("LastAttempt = %v, want %v", got.LastAttempt, want.LastAttempt)
-	}
-
-	if got.PRURL != want.PRURL {
-		t.Errorf("PRURL = %q, want %q", got.PRURL, want.PRURL)
-	}
-
-	if got.Error != want.Error {
-		t.Errorf("Error = %q, want %q", got.Error, want.Error)
-	}
+	require.True(t, ok, "expected key to exist")
+	assert.Equal(t, want.Status, got.Status)
+	assert.Equal(t, want.Attempts, got.Attempts)
+	assert.True(t, got.LastAttempt.Equal(want.LastAttempt), "LastAttempt = %v, want %v", got.LastAttempt, want.LastAttempt)
+	assert.Equal(t, want.PRURL, got.PRURL)
+	assert.Equal(t, want.Error, got.Error)
 }
 
 func TestStore_SaveAndReload(t *testing.T) {
@@ -71,27 +52,15 @@ func TestStore_SaveAndReload(t *testing.T) {
 	}
 	store.Set("issue-42", want)
 
-	if err := store.Save(); err != nil {
-		t.Fatalf("Save failed: %v", err)
-	}
+	require.NoError(t, store.Save(), "Save failed")
 
 	store2, err := Load(path)
-	if err != nil {
-		t.Fatalf("Load failed: %v", err)
-	}
+	require.NoError(t, err, "Load failed")
 
 	got, ok := store2.Get("issue-42")
-	if !ok {
-		t.Fatal("expected key to exist after reload")
-	}
-
-	if got.Status != want.Status {
-		t.Errorf("Status = %q, want %q", got.Status, want.Status)
-	}
-
-	if got.PRURL != want.PRURL {
-		t.Errorf("PRURL = %q, want %q", got.PRURL, want.PRURL)
-	}
+	require.True(t, ok, "expected key to exist after reload")
+	assert.Equal(t, want.Status, got.Status)
+	assert.Equal(t, want.PRURL, got.PRURL)
 }
 
 func TestStore_RecoverInProgress(t *testing.T) {
@@ -105,19 +74,13 @@ func TestStore_RecoverInProgress(t *testing.T) {
 	store.RecoverCrashed()
 
 	got, _ := store.Get("a")
-	if got.Status != StatusPending {
-		t.Errorf("in_progress should become pending, got %q", got.Status)
-	}
+	assert.Equal(t, StatusPending, got.Status, "in_progress should become pending")
 
 	got, _ = store.Get("b")
-	if got.Status != StatusCompleted {
-		t.Errorf("completed should stay completed, got %q", got.Status)
-	}
+	assert.Equal(t, StatusCompleted, got.Status, "completed should stay completed")
 
 	got, _ = store.Get("c")
-	if got.Status != StatusFailed {
-		t.Errorf("failed should stay failed, got %q", got.Status)
-	}
+	assert.Equal(t, StatusFailed, got.Status, "failed should stay failed")
 }
 
 func TestStore_ShouldProcess(t *testing.T) {
@@ -145,9 +108,7 @@ func TestStore_ShouldProcess(t *testing.T) {
 				store.Set(tt.key, *tt.state)
 			}
 
-			if got := store.ShouldProcess(tt.key, tt.maxRetries); got != tt.want {
-				t.Errorf("ShouldProcess(%q, %d) = %v, want %v", tt.key, tt.maxRetries, got, tt.want)
-			}
+			assert.Equal(t, tt.want, store.ShouldProcess(tt.key, tt.maxRetries))
 		})
 	}
 }
@@ -157,43 +118,28 @@ func TestStore_Save_CreatesBackup(t *testing.T) {
 	path := filepath.Join(dir, "state.json")
 
 	st, err := Load(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	st.Set("org/repo#1", IssueState{Status: StatusCompleted, Attempts: 1})
 
-	if err := st.Save(); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, st.Save())
 
 	bakPath := path + ".bak"
-	if _, err := os.Stat(bakPath); !os.IsNotExist(err) {
-		t.Fatal("backup should not exist after first save")
-	}
+	_, err = os.Stat(bakPath)
+	assert.True(t, os.IsNotExist(err), "backup should not exist after first save")
 
 	st.Set("org/repo#2", IssueState{Status: StatusFailed, Attempts: 2})
 
-	if err := st.Save(); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, st.Save())
 
-	if _, err := os.Stat(bakPath); err != nil {
-		t.Fatalf("backup not created: %v", err)
-	}
+	_, err = os.Stat(bakPath)
+	require.NoError(t, err, "backup not created")
 
 	bakStore, err := Load(bakPath)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
-	if _, ok := bakStore.Issues["org/repo#1"]; !ok {
-		t.Error("backup missing org/repo#1")
-	}
-
-	if _, ok := bakStore.Issues["org/repo#2"]; ok {
-		t.Error("backup should not contain org/repo#2")
-	}
+	assert.Contains(t, bakStore.Issues, "org/repo#1", "backup missing org/repo#1")
+	assert.NotContains(t, bakStore.Issues, "org/repo#2", "backup should not contain org/repo#2")
 }
 
 func TestLoad_FallsBackToBackup(t *testing.T) {
@@ -204,36 +150,20 @@ func TestLoad_FallsBackToBackup(t *testing.T) {
 	bak, _ := Load(bakPath)
 	bak.Set("org/repo#1", IssueState{Status: StatusCompleted, Attempts: 1})
 
-	if err := bak.Save(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.WriteFile(path, []byte("{invalid json"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, bak.Save())
+	require.NoError(t, os.WriteFile(path, []byte("{invalid json"), 0644))
 
 	st, err := Load(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
-	if _, ok := st.Issues["org/repo#1"]; !ok {
-		t.Error("should have recovered org/repo#1 from backup")
-	}
+	assert.Contains(t, st.Issues, "org/repo#1", "should have recovered org/repo#1 from backup")
 }
 
 func TestStore_CorruptFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state.json")
-	if err := os.WriteFile(path, []byte("not json {{{garbage"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(path, []byte("not json {{{garbage"), 0644))
 
 	store, err := Load(path)
-	if err != nil {
-		t.Fatalf("expected no error on corrupt file, got %v", err)
-	}
-
-	if len(store.Issues) != 0 {
-		t.Fatalf("expected empty issues on corrupt file, got %d", len(store.Issues))
-	}
+	require.NoError(t, err, "expected no error on corrupt file")
+	assert.Empty(t, store.Issues, "expected empty issues on corrupt file")
 }
