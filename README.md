@@ -70,6 +70,7 @@ issuebot --local --command "./my-issue-handler.sh {prompt}"
 | `--org` | | GitHub org to watch (all non-archived source repos) |
 | `--repo` | | Single `owner/repo` to watch |
 | `--label` | | Only process issues with this label (default: all open issues) |
+| `--author` | | Only process issues by this GitHub username |
 | `--strategy` | `commit` | Git strategy: `pr` (branch + PR) or `commit` (push to default branch) |
 | `--interval` | `30s` | Polling interval |
 | `--workers` | `5` | Max concurrent repo workers |

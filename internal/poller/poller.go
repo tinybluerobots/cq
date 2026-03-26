@@ -19,6 +19,7 @@ type Poller struct {
 	Org        string
 	SingleRepo string
 	Label      string
+	Author     string
 }
 
 // ListRepos returns repository full names to monitor. If SingleRepo is set,
@@ -96,6 +97,10 @@ func (p *Poller) ListIssues(ctx context.Context, repo string) ([]*github.Issue, 
 
 		for _, issue := range issues {
 			if issue.PullRequestLinks != nil {
+				continue
+			}
+
+			if p.Author != "" && issue.GetUser().GetLogin() != p.Author {
 				continue
 			}
 

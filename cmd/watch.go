@@ -37,6 +37,7 @@ func init() {
 	f.StringVar(&cfg.Org, "org", cfg.Org, "GitHub organization")
 	f.StringVar(&cfg.Repo, "repo", cfg.Repo, "GitHub repository")
 	f.StringVar(&cfg.Label, "label", cfg.Label, "Issue label to watch")
+	f.StringVar(&cfg.Author, "author", cfg.Author, "Only process issues by this GitHub username")
 	f.StringVar(&cfg.Strategy, "strategy", cfg.Strategy, "Default strategy (pr, commit)")
 	f.DurationVar(&cfg.Interval, "interval", cfg.Interval, "Poll interval")
 	f.IntVar(&cfg.Workers, "workers", cfg.Workers, "Max concurrent workers")
@@ -147,6 +148,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 		Org:        cfg.Org,
 		SingleRepo: cfg.Repo,
 		Label:      cfg.Label,
+		Author:     cfg.Author,
 	}
 
 	// Signal handling

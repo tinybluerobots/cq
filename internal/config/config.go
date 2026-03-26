@@ -16,6 +16,7 @@ type CLIConfig struct {
 	Org        string
 	Repo       string
 	Label      string
+	Author     string
 	Strategy   string
 	Interval   time.Duration
 	Workers    int
