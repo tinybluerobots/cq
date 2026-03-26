@@ -4,6 +4,10 @@ Autonomous GitHub issue processor powered by any CLI tool. Watches repos for ope
 
 ## Install
 
+Download a prebuilt binary from the [latest release](https://github.com/tinybluerobots/cq/releases/latest).
+
+Or via `go install`:
+
 ```bash
 go install github.com/tinybluerobots/cq@latest
 ```
