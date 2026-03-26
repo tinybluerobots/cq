@@ -180,6 +180,75 @@ post-command: gh pr edit $PR_NUMBER --add-reviewer octocat
 | `branch` | any string | Custom branch name (default: `issuebot/issue-{N}`) |
 | `post-command` | any command | Shell command to run after PR creation (`$PR_URL` and `$PR_NUMBER` available) |
 
+## Running as a Service
+
+### Linux (systemd)
+
+Create a user service:
+
+```bash
+mkdir -p ~/.config/systemd/user
+
+cat > ~/.config/systemd/user/issuebot.service << 'EOF'
+[Unit]
+Description=issuebot
+
+[Service]
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/local/bin/issuebot --org myorg --author myuser --ntfy-topic my-alerts --command "claude -p {prompt} --dangerously-skip-permissions"
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+EOF
+```
+
+Enable and start:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now issuebot
+```
+
+Enable lingering so the service survives logout:
+
+```bash
+sudo loginctl enable-linger $USER
+```
+
+Check status:
+
+```bash
+systemctl --user status issuebot
+journalctl --user -u issuebot -f
+```
+
+### macOS (launchd)
+
+```bash
+cat > ~/Library/LaunchAgents/com.issuebot.plist << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.issuebot</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/issuebot</string>
+        <string>--org</string><string>myorg</string>
+        <string>--author</string><string>myuser</string>
+        <string>--ntfy-topic</string><string>my-alerts</string>
+        <string>--command</string><string>claude -p {prompt} --dangerously-skip-permissions</string>
+    </array>
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>
+</dict>
+</plist>
+EOF
+
+launchctl load ~/Library/LaunchAgents/com.issuebot.plist
+```
+
 ## Tips for Best Results
 
 issuebot works best when issues are **atomic and self-contained** — each issue should include enough context for the AI to complete the work without guessing.
