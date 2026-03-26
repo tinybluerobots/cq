@@ -1,4 +1,4 @@
-module github.com/jon/claude-afk
+module github.com/tinybluerobots/cq
 
 go 1.26
 

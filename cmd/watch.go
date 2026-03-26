@@ -13,12 +13,13 @@ import (
 	"time"
 
 	"github.com/google/go-github/v69/github"
-	"github.com/jon/claude-afk/internal/config"
-	"github.com/jon/claude-afk/internal/notify"
-	"github.com/jon/claude-afk/internal/poller"
-	"github.com/jon/claude-afk/internal/state"
-	"github.com/jon/claude-afk/internal/worker"
 	"github.com/spf13/cobra"
+	"github.com/tinybluerobots/cq/internal/config"
+	"github.com/tinybluerobots/cq/internal/notify"
+	"github.com/tinybluerobots/cq/internal/poller"
+	"github.com/tinybluerobots/cq/internal/prompt"
+	"github.com/tinybluerobots/cq/internal/state"
+	"github.com/tinybluerobots/cq/internal/worker"
 	"golang.org/x/oauth2"
 )
 
@@ -31,14 +32,8 @@ var (
 
 var cfg = config.DefaultCLIConfig()
 
-var watchCmd = &cobra.Command{
-	Use:   "watch",
-	Short: "Watch GitHub repos for issues and process them with Claude",
-	RunE:  runWatch,
-}
-
 func init() {
-	f := watchCmd.Flags()
+	f := rootCmd.Flags()
 	f.StringVar(&cfg.Org, "org", cfg.Org, "GitHub organization")
 	f.StringVar(&cfg.Repo, "repo", cfg.Repo, "GitHub repository")
 	f.StringVar(&cfg.Label, "label", cfg.Label, "Issue label to watch")
@@ -47,10 +42,11 @@ func init() {
 	f.IntVar(&cfg.Workers, "workers", cfg.Workers, "Max concurrent workers")
 	f.IntVar(&cfg.MaxRetries, "max-retries", cfg.MaxRetries, "Max retries per issue")
 	f.StringVar(&cfg.Workspace, "workspace", cfg.Workspace, "Workspace directory for repo clones")
+	f.BoolVar(&cfg.Local, "local", cfg.Local, "Use current directory instead of cloning")
+	f.StringVar(&cfg.Command, "command", cfg.Command, "Command to run (prompt via stdin, default: claude)")
+	f.StringVar(&cfg.PromptFile, "prompt-file", cfg.PromptFile, "Path to prompt template file")
 	f.StringVar(&cfg.LogFile, "log-file", cfg.LogFile, "Log file path")
 	f.StringVar(&cfg.NtfyTopic, "ntfy-topic", cfg.NtfyTopic, "ntfy.sh topic for notifications")
-
-	rootCmd.AddCommand(watchCmd)
 }
 
 func githubToken() string {
@@ -113,7 +109,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	// State
 	home, _ := os.UserHomeDir()
 
-	stateDir := home + "/.claude-afk"
+	stateDir := home + "/.cq"
 	if err := os.MkdirAll(stateDir, 0755); err != nil {
 		return fmt.Errorf("mkdir state dir: %w", err)
 	}
@@ -134,6 +130,13 @@ func runWatch(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("mkdir workspace: %w", err)
 	}
 
+	// Prompt template
+	if err := prompt.EnsureFile(cfg.PromptFile); err != nil {
+		return fmt.Errorf("ensure prompt file: %w", err)
+	}
+
+	slog.Info("using prompt", "file", cfg.PromptFile)
+
 	// Poller
 	p := &poller.Poller{
 		Client:     ghClient,
@@ -150,15 +153,15 @@ func runWatch(cmd *cobra.Command, args []string) error {
 
 	var repoLocks sync.Map
 
-	mode := "current repo"
+	target := "current repo"
 	if cfg.Org != "" {
-		mode = fmt.Sprintf("org '%s'", cfg.Org)
+		target = fmt.Sprintf("org '%s'", cfg.Org)
 	} else if cfg.Repo != "" {
-		mode = cfg.Repo
+		target = cfg.Repo
 	}
 
-	slog.Info("starting claude-afk",
-		"mode", mode, "label", cfg.Label,
+	slog.Info("starting cq",
+		"target", target, "label", cfg.Label,
 		"strategy", cfg.Strategy, "interval", cfg.Interval,
 		"workers", cfg.Workers,
 	)

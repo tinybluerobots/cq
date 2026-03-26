@@ -13,9 +13,10 @@ import (
 	"testing"
 
 	"github.com/google/go-github/v69/github"
-	"github.com/jon/claude-afk/internal/config"
-	"github.com/jon/claude-afk/internal/notify"
-	"github.com/jon/claude-afk/internal/state"
+	"github.com/tinybluerobots/cq/internal/config"
+	"github.com/tinybluerobots/cq/internal/notify"
+	"github.com/tinybluerobots/cq/internal/prompt"
+	"github.com/tinybluerobots/cq/internal/state"
 )
 
 func mockClaude(t *testing.T, dir string, output string, exitCode int) string {
@@ -75,16 +76,29 @@ func testWorker(t *testing.T) *Worker {
 		t.Fatal(err)
 	}
 
+	promptFile := filepath.Join(dir, "prompt.tmpl")
+	if err := prompt.EnsureFile(promptFile); err != nil {
+		t.Fatalf("ensure prompt file: %v", err)
+	}
+
 	return &Worker{
 		State:     st,
 		Notifier:  notify.New(""),
-		CLIConfig: config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos")},
+		CLIConfig: config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile},
 		Workspace: filepath.Join(dir, "repos"),
 	}
 }
 
 func TestWorker_BuildPrompt(t *testing.T) {
 	w := testWorker(t)
+
+	promptFile := filepath.Join(t.TempDir(), "prompt.tmpl")
+	if err := prompt.EnsureFile(promptFile); err != nil {
+		t.Fatalf("ensure prompt file: %v", err)
+	}
+
+	w.CLIConfig.PromptFile = promptFile
+
 	num := 42
 	title := "Fix the widget"
 	body := "The widget is broken\nPlease fix it"
@@ -94,23 +108,26 @@ func TestWorker_BuildPrompt(t *testing.T) {
 		Body:   &body,
 	}
 
-	prompt := w.BuildPrompt("myorg/myrepo", issue)
+	p, err := w.BuildPrompt("myorg/myrepo", issue)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	for _, want := range []string{"42", "Fix the widget", "The widget is broken", "myorg/myrepo", "ISSUE_RESOLVED", "ISSUE_FAILED"} {
-		if !strings.Contains(prompt, want) {
+		if !strings.Contains(p, want) {
 			t.Errorf("prompt missing %q", want)
 		}
 	}
 }
 
-func TestWorker_RunClaude_Success(t *testing.T) {
+func TestWorker_RunCommand_Claude_Success(t *testing.T) {
 	w := testWorker(t)
 	dir := t.TempDir()
 
 	resultJSON := `{"type":"result","result":"ISSUE_RESOLVED #1"}`
 	w.ClaudePath = mockClaude(t, dir, resultJSON, 0)
 
-	result, err := w.RunClaude(context.Background(), dir, "fix the thing")
+	result, err := w.RunCommand(context.Background(), dir, "fix the thing")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -120,15 +137,30 @@ func TestWorker_RunClaude_Success(t *testing.T) {
 	}
 }
 
-func TestWorker_RunClaude_Failure(t *testing.T) {
+func TestWorker_RunCommand_Claude_Failure(t *testing.T) {
 	w := testWorker(t)
 	dir := t.TempDir()
 
 	w.ClaudePath = mockClaude(t, dir, `{"type":"result","result":"nope"}`, 1)
 
-	_, err := w.RunClaude(context.Background(), dir, "fix the thing")
+	_, err := w.RunCommand(context.Background(), dir, "fix the thing")
 	if err == nil {
 		t.Fatal("expected error for non-zero exit")
+	}
+}
+
+func TestWorker_RunCommand_Custom(t *testing.T) {
+	w := testWorker(t)
+	w.CLIConfig.Command = "cat"
+	dir := t.TempDir()
+
+	result, err := w.RunCommand(context.Background(), dir, "hello from stdin")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result != "hello from stdin" {
+		t.Errorf("result = %q, want %q", result, "hello from stdin")
 	}
 }
 
@@ -174,11 +206,16 @@ func TestWorker_ProcessIssue_PRStrategy(t *testing.T) {
 	claudeOutput := `{"type":"result","result":"ISSUE_RESOLVED #1"}`
 	claudePath := mockClaude(t, dir, claudeOutput, 0)
 
+	promptFile := filepath.Join(dir, "prompt.tmpl")
+	if err := prompt.EnsureFile(promptFile); err != nil {
+		t.Fatalf("ensure prompt file: %v", err)
+	}
+
 	w := &Worker{
 		Client:     ghClient,
 		State:      st,
 		Notifier:   notify.New(""),
-		CLIConfig:  config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos")},
+		CLIConfig:  config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile},
 		Workspace:  filepath.Join(dir, "repos"),
 		ClaudePath: claudePath,
 		CloneURL:   bare,
@@ -207,7 +244,7 @@ func TestWorker_ProcessIssue_PRStrategy(t *testing.T) {
 
 func TestWorker_ProcessIssue_IssueConfigOverride(t *testing.T) {
 	cli := config.CLIConfig{Strategy: "direct"}
-	body := "<!-- claude-afk\nstrategy: pr\nbranch: custom-branch\n-->"
+	body := "<!-- cq\nstrategy: pr\nbranch: custom-branch\n-->"
 	issueCfg := config.ParseIssueConfig(body)
 
 	strategy := config.ResolveStrategy(cli, issueCfg)

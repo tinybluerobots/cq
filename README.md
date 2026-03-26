@@ -1,6 +1,6 @@
 # cq
 
-Autonomous GitHub issue processor powered by [Claude](https://claude.ai). Watches repos for labeled issues, dispatches Claude to resolve them, and opens PRs with the fixes.
+Autonomous GitHub issue processor powered by any CLI tool. Watches repos for open issues, dispatches a command to resolve them, and pushes fixes or opens PRs.
 
 ## Install
 
@@ -19,14 +19,20 @@ go build -o cq .
 ## Usage
 
 ```bash
-# Watch all repos in an org
-cq watch --org myorg
+# Watch current directory's repo
+cq
+
+# Work directly in current directory (no clone)
+cq --local
 
 # Watch a single repo
-cq watch --repo owner/repo
+cq --repo owner/repo
 
-# Watch current directory's repo
-cq watch
+# Watch all repos in an org
+cq --org myorg
+
+# Use a custom command instead of Claude
+cq --local --command "my-ai-tool"
 ```
 
 ### Flags
@@ -35,11 +41,14 @@ cq watch
 |------|---------|-------------|
 | `--org` | | GitHub org to watch (all non-archived source repos) |
 | `--repo` | | Single `owner/repo` to watch |
-| `--label` | `cq` | Only process issues with this label |
-| `--strategy` | `pr` | Git strategy: `pr` (branch + PR) or `direct` (push to default branch) |
+| `--label` | | Only process issues with this label (default: all open issues) |
+| `--strategy` | `pr` | Git strategy: `pr` (branch + PR) or `commit` (push to default branch) |
 | `--interval` | `30s` | Polling interval |
 | `--workers` | `5` | Max concurrent repo workers |
 | `--workspace` | `~/.cq/repos` | Directory for cloned repos |
+| `--local` | `false` | Use current directory instead of cloning |
+| `--command` | | Custom command to run (prompt via stdin, default: Claude CLI) |
+| `--prompt-file` | `~/.cq/prompt.tmpl` | Path to prompt template file |
 | `--max-retries` | `3` | Max retry attempts per issue |
 | `--log-file` | | Log file path (defaults to stdout) |
 | `--ntfy-topic` | | [ntfy.sh](https://ntfy.sh) topic for error notifications |
@@ -50,13 +59,36 @@ Requires a GitHub token. Set `GITHUB_TOKEN` or run `gh auth login`.
 
 ## How It Works
 
-1. **Polls** GitHub API for open issues with the target label
-2. **Clones** the repo (or pulls if already cloned)
-3. **Dispatches** Claude to read the issue, implement a fix, and run tests
-4. **Opens a PR** (or pushes directly, depending on strategy)
+1. **Polls** GitHub API for open issues (optionally filtered by label)
+2. **Clones** the repo (or uses current dir with `--local`)
+3. **Dispatches** a command (default: Claude CLI) with the issue as a prompt
+4. **Opens a PR** or pushes directly, depending on strategy
 5. **Tracks state** in `~/.cq/state.json` to avoid re-processing
 
 Each repo gets at most one concurrent worker to prevent conflicts. Failed issues are retried up to `--max-retries` times.
+
+## Prompt Template
+
+On first run, cq writes a default prompt template to `~/.cq/prompt.tmpl`. Edit it to customise how issues are presented to your command. Available template fields:
+
+| Field | Description |
+|-------|-------------|
+| `{{.Repo}}` | Repository full name (`owner/repo`) |
+| `{{.Number}}` | Issue number |
+| `{{.Title}}` | Issue title |
+| `{{.Body}}` | Issue body |
+
+## Custom Commands
+
+Use `--command` to swap Claude for any CLI tool. The prompt is passed via stdin:
+
+```bash
+# Use a different AI CLI
+cq --local --command "gemini --prompt"
+
+# Pipe to a script
+cq --local --command "./my-issue-handler.sh"
+```
 
 ## Per-Issue Configuration
 
@@ -64,14 +96,14 @@ Override defaults per issue by adding a config block to the issue body:
 
 ```markdown
 <!-- cq
-strategy: direct
+strategy: commit
 branch: custom-branch-name
 -->
 ```
 
 | Key | Values | Description |
 |-----|--------|-------------|
-| `strategy` | `pr`, `direct` | Override the default git strategy |
+| `strategy` | `pr`, `commit` | Override the default git strategy |
 | `branch` | any string | Custom branch name (default: `cq/issue-{N}`) |
 
 ## Development

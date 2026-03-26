@@ -77,7 +77,7 @@ func TestPoller_ListRepos_Single(t *testing.T) {
 	}
 }
 
-func TestPoller_ListIssues(t *testing.T) {
+func TestPoller_ListIssues_WithLabel(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/repos/myorg/myrepo/issues" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
@@ -120,5 +120,37 @@ func TestPoller_ListIssues(t *testing.T) {
 
 	if issues[0].GetNumber() != 1 {
 		t.Fatalf("expected issue #1, got #%d", issues[0].GetNumber())
+	}
+}
+
+func TestPoller_ListIssues_NoLabel(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("labels") != "" {
+			t.Fatalf("expected no labels filter, got %s", r.URL.Query().Get("labels"))
+		}
+
+		issues := []*github.Issue{
+			{Number: github.Ptr(1), Title: github.Ptr("Any issue")},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		if err := json.NewEncoder(w).Encode(issues); err != nil {
+			t.Errorf("encode issues: %v", err)
+		}
+	}))
+	defer srv.Close()
+
+	p := &Poller{
+		Client: testClient(srv),
+	}
+
+	issues, err := p.ListIssues(context.Background(), "myorg/myrepo")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(issues) != 1 {
+		t.Fatalf("expected 1 issue, got %d", len(issues))
 	}
 }

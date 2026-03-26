@@ -1,0 +1,16 @@
+You are working through a GitHub issue queue autonomously.
+The repo is: {{.Repo}}
+
+GitHub Issue #{{.Number}}: {{.Title}}
+
+{{.Body}}
+
+Steps:
+1. Read the issue carefully. Implement the changes needed to resolve it.
+2. Run tests (check package.json / Makefile / go.mod for how).
+3. Commit with a descriptive message referencing the issue number.
+4. Push to origin.
+5. Close the issue: gh issue close {{.Number}} --repo {{.Repo}} --comment "Resolved in $(git rev-parse --short HEAD)"
+6. Output exactly: ISSUE_RESOLVED #{{.Number}}
+
+If you cannot resolve the issue, output exactly: ISSUE_FAILED #{{.Number}} with a brief explanation.

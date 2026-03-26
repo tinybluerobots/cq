@@ -17,7 +17,7 @@ run = "go fmt ./..."
 run = "gotestsum --rerun-fails"
 
 [tasks.build]
-run = "go build -o ./bin/claude-afk ."
+run = "go build -o ./bin/cq ."
 
 [tasks.tidy]
 run = """

@@ -13,10 +13,11 @@ import (
 	"time"
 
 	"github.com/google/go-github/v69/github"
-	"github.com/jon/claude-afk/internal/config"
-	"github.com/jon/claude-afk/internal/notify"
-	"github.com/jon/claude-afk/internal/poller"
-	"github.com/jon/claude-afk/internal/state"
+	"github.com/tinybluerobots/cq/internal/config"
+	"github.com/tinybluerobots/cq/internal/notify"
+	"github.com/tinybluerobots/cq/internal/poller"
+	"github.com/tinybluerobots/cq/internal/prompt"
+	"github.com/tinybluerobots/cq/internal/state"
 )
 
 // Worker processes GitHub issues by invoking the Claude CLI.
@@ -30,25 +31,9 @@ type Worker struct {
 	CloneURL   string // override clone URL for testing (use local dir)
 }
 
-// BuildPrompt constructs the prompt sent to the Claude CLI for a given issue.
-func (w *Worker) BuildPrompt(repo string, issue *github.Issue) string {
-	body := ""
-	if issue.Body != nil {
-		body = *issue.Body
-	}
-
-	return fmt.Sprintf(`You are working on repository %s.
-
-GitHub Issue #%d: %s
-
-%s
-
-When you have resolved the issue, output exactly: ISSUE_RESOLVED #%d
-If you cannot resolve the issue, output exactly: ISSUE_FAILED #%d with a brief explanation.`,
-		repo,
-		issue.GetNumber(), issue.GetTitle(),
-		body,
-		issue.GetNumber(), issue.GetNumber())
+// BuildPrompt renders the prompt template for a given issue.
+func (w *Worker) BuildPrompt(repo string, issue *github.Issue) (string, error) {
+	return prompt.Render(w.CLIConfig.PromptFile, repo, issue)
 }
 
 // EnsureRepo clones a repository if it doesn't exist, or pulls latest changes.
@@ -74,11 +59,11 @@ func (w *Worker) cloneRepo(ctx context.Context, cloneURL, repoDir string) (strin
 		return "", fmt.Errorf("git clone: %w", err)
 	}
 
-	if err := exec.CommandContext(ctx, "git", "-C", repoDir, "config", "user.email", "claude-afk@bot").Run(); err != nil {
+	if err := exec.CommandContext(ctx, "git", "-C", repoDir, "config", "user.email", "cq@bot").Run(); err != nil {
 		return "", fmt.Errorf("git config user.email: %w", err)
 	}
 
-	if err := exec.CommandContext(ctx, "git", "-C", repoDir, "config", "user.name", "claude-afk").Run(); err != nil {
+	if err := exec.CommandContext(ctx, "git", "-C", repoDir, "config", "user.name", "cq").Run(); err != nil {
 		return "", fmt.Errorf("git config user.name: %w", err)
 	}
 
@@ -96,6 +81,29 @@ func (w *Worker) pullRepo(ctx context.Context, repoDir string) (string, error) {
 	return repoDir, nil
 }
 
+// RunCommand executes the configured command with the prompt on stdin.
+// If no command is configured, it defaults to the Claude CLI.
+func (w *Worker) RunCommand(ctx context.Context, workDir, prompt string) (string, error) {
+	if w.CLIConfig.Command != "" {
+		return w.runCustomCommand(ctx, workDir, prompt)
+	}
+
+	return w.runClaude(ctx, workDir, prompt)
+}
+
+func (w *Worker) runCustomCommand(ctx context.Context, workDir, prompt string) (string, error) {
+	cmd := exec.CommandContext(ctx, "sh", "-c", w.CLIConfig.Command)
+	cmd.Dir = workDir
+	cmd.Stdin = strings.NewReader(prompt)
+	cmd.Stderr = os.Stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("command exited with error: %w", err)
+	}
+
+	return strings.TrimSpace(string(out)), nil
+}
+
 // streamJSON represents a line of Claude's stream-json output.
 type streamJSON struct {
 	Type   string `json:"type"`
@@ -103,14 +111,13 @@ type streamJSON struct {
 	Text   string `json:"text"`
 }
 
-// RunClaude executes the Claude CLI and returns the result text.
-func (w *Worker) RunClaude(ctx context.Context, workDir, prompt string) (string, error) {
+func (w *Worker) runClaude(ctx context.Context, workDir, prompt string) (string, error) {
 	claudeBin := w.ClaudePath
 	if claudeBin == "" {
 		claudeBin = "claude"
 	}
 
-	cmd := exec.CommandContext(ctx, claudeBin, "-p", prompt, "--dangerously-skip-permissions", "--output-format", "stream-json")
+	cmd := exec.CommandContext(ctx, claudeBin, "-p", prompt, "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose")
 	cmd.Dir = workDir
 
 	stdout, err := cmd.StdoutPipe()
@@ -179,17 +186,28 @@ func (w *Worker) ProcessIssue(ctx context.Context, repo string, issue *github.Is
 	strategy := config.ResolveStrategy(w.CLIConfig, issueCfg)
 	branch := config.ResolveBranch(issueCfg, issue.GetNumber())
 
-	// Determine clone URL.
-	cloneURL := w.CloneURL
-	if cloneURL == "" {
-		cloneURL = fmt.Sprintf("https://github.com/%s.git", repo)
-	}
+	var (
+		repoDir string
+		err     error
+	)
 
-	// Clone or pull.
-	repoDir, err := w.EnsureRepo(ctx, cloneURL, repo)
-	if err != nil {
-		w.fail(ctx, key, logger, fmt.Sprintf("ensure repo: %v", err))
-		return
+	if w.CLIConfig.Local {
+		repoDir, err = os.Getwd()
+		if err != nil {
+			w.fail(ctx, key, logger, fmt.Sprintf("getwd: %v", err))
+			return
+		}
+	} else {
+		cloneURL := w.CloneURL
+		if cloneURL == "" {
+			cloneURL = fmt.Sprintf("https://github.com/%s.git", repo)
+		}
+
+		repoDir, err = w.EnsureRepo(ctx, cloneURL, repo)
+		if err != nil {
+			w.fail(ctx, key, logger, fmt.Sprintf("ensure repo: %v", err))
+			return
+		}
 	}
 
 	// If PR strategy, create branch.
@@ -203,10 +221,14 @@ func (w *Worker) ProcessIssue(ctx context.Context, repo string, issue *github.Is
 		}
 	}
 
-	// Run Claude.
-	prompt := w.BuildPrompt(repo, issue)
+	// Run command.
+	prompt, err := w.BuildPrompt(repo, issue)
+	if err != nil {
+		w.fail(ctx, key, logger, fmt.Sprintf("build prompt: %v", err))
+		return
+	}
 
-	result, err := w.RunClaude(ctx, repoDir, prompt)
+	result, err := w.RunCommand(ctx, repoDir, prompt)
 	if err != nil {
 		w.fail(ctx, key, logger, fmt.Sprintf("claude: %v", err))
 		return
@@ -265,7 +287,7 @@ func (w *Worker) pushAndCreatePR(ctx context.Context, key string, logger *slog.L
 	}
 
 	prTitle := fmt.Sprintf("Fix #%d: %s", issue.GetNumber(), issue.GetTitle())
-	prBody := fmt.Sprintf("Resolves #%d\n\nAutomated by claude-afk.", issue.GetNumber())
+	prBody := fmt.Sprintf("Resolves #%d\n\nAutomated by cq.", issue.GetNumber())
 	base := "main"
 
 	pr, _, err := w.Client.PullRequests.Create(ctx, parts[0], parts[1], &github.NewPullRequest{
@@ -304,7 +326,7 @@ func (w *Worker) fail(ctx context.Context, key string, logger *slog.Logger, reas
 		logger.Error("save state", "error", err)
 	}
 
-	if err := w.Notifier.Send(ctx, fmt.Sprintf("claude-afk failed %s: %s", key, reason)); err != nil {
+	if err := w.Notifier.Send(ctx, fmt.Sprintf("cq failed %s: %s", key, reason)); err != nil {
 		logger.Error("send notification", "error", err)
 	}
 }

@@ -21,6 +21,9 @@ type CLIConfig struct {
 	Workers    int
 	MaxRetries int
 	Workspace  string
+	Local      bool
+	Command    string
+	PromptFile string
 	LogFile    string
 	NtfyTopic  string
 }
@@ -31,22 +34,23 @@ type IssueConfig struct {
 	Branch   string `yaml:"branch"`
 }
 
-var issueConfigRe = regexp.MustCompile(`(?s)<!--\s*claude-afk\s*\n(.*?)\n-->`)
+var issueConfigRe = regexp.MustCompile(`(?s)<!--\s*cq\s*\n(.*?)\n-->`)
 
 // DefaultCLIConfig returns a CLIConfig with sensible defaults.
 func DefaultCLIConfig() CLIConfig {
 	return CLIConfig{
-		Label:      "claude-afk",
+		Label:      "",
 		Strategy:   "pr",
 		Interval:   30 * time.Second,
 		Workers:    5,
 		MaxRetries: 3,
 		Workspace:  defaultWorkspace(),
+		PromptFile: defaultPromptFile(),
 	}
 }
 
 // ParseIssueConfig extracts an IssueConfig from an issue body.
-// It looks for a <!-- claude-afk ... --> HTML comment block containing YAML.
+// It looks for a <!-- cq ... --> HTML comment block containing YAML.
 func ParseIssueConfig(body string) IssueConfig {
 	var cfg IssueConfig
 
@@ -56,7 +60,7 @@ func ParseIssueConfig(body string) IssueConfig {
 	}
 
 	if err := yaml.Unmarshal([]byte(m[1]), &cfg); err != nil {
-		slog.Warn("malformed claude-afk config in issue body", "error", err)
+		slog.Warn("malformed cq config in issue body", "error", err)
 	}
 
 	return cfg
@@ -71,20 +75,29 @@ func ResolveStrategy(cli CLIConfig, issue IssueConfig) string {
 	return cli.Strategy
 }
 
-// ResolveBranch returns the issue-level branch if set, otherwise claude-afk/issue-{N}.
+// ResolveBranch returns the issue-level branch if set, otherwise cq/issue-{N}.
 func ResolveBranch(issue IssueConfig, issueNumber int) string {
 	if issue.Branch != "" {
 		return issue.Branch
 	}
 
-	return "claude-afk/issue-" + strconv.Itoa(issueNumber)
+	return "cq/issue-" + strconv.Itoa(issueNumber)
 }
 
 func defaultWorkspace() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return ".claude-afk/repos"
+		return ".cq/repos"
 	}
 
-	return filepath.Join(home, ".claude-afk", "repos")
+	return filepath.Join(home, ".cq", "repos")
+}
+
+func defaultPromptFile() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ".cq/prompt.tmpl"
+	}
+
+	return filepath.Join(home, ".cq", "prompt.tmpl")
 }

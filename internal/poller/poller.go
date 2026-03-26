@@ -72,8 +72,11 @@ func (p *Poller) ListIssues(ctx context.Context, repo string) ([]*github.Issue, 
 
 	opts := &github.IssueListByRepoOptions{
 		State:       "open",
-		Labels:      []string{p.Label},
 		ListOptions: github.ListOptions{PerPage: 100},
+	}
+
+	if p.Label != "" {
+		opts.Labels = []string{p.Label}
 	}
 
 	for {

@@ -11,7 +11,7 @@ import (
 func TestParseIssueConfig_Full(t *testing.T) {
 	body := `Some issue text here.
 
-<!-- claude-afk
+<!-- cq
 strategy: commit
 branch: my-feature
 -->
@@ -42,7 +42,7 @@ func TestParseIssueConfig_Empty(t *testing.T) {
 }
 
 func TestParseIssueConfig_PartialFields(t *testing.T) {
-	body := `<!-- claude-afk
+	body := `<!-- cq
 strategy: worktree
 -->`
 
@@ -57,7 +57,7 @@ strategy: worktree
 }
 
 func TestParseIssueConfig_UnknownKeysIgnored(t *testing.T) {
-	body := `<!-- claude-afk
+	body := `<!-- cq
 strategy: pr
 branch: fix-123
 unknown_key: some_value
@@ -86,8 +86,8 @@ func TestDefaultConfig(t *testing.T) {
 		{"interval", cfg.Interval, 30 * time.Second},
 		{"workers", cfg.Workers, 5},
 		{"max-retries", cfg.MaxRetries, 3},
-		{"label", cfg.Label, "claude-afk"},
-		{"workspace-has-claude-afk", strings.Contains(cfg.Workspace, ".claude-afk/repos"), true},
+		{"label", cfg.Label, ""},
+		{"workspace-has-cq", strings.Contains(cfg.Workspace, ".cq/repos"), true},
 		{"workspace-no-tilde", strings.HasPrefix(cfg.Workspace, "~"), false},
 	}
 
@@ -101,7 +101,7 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 func TestParseIssueConfig_MalformedYAML(t *testing.T) {
-	body := `<!-- claude-afk
+	body := `<!-- cq
 strategy: [broken
 -->`
 
@@ -115,7 +115,7 @@ func TestDefaultConfig_WorkspaceUsesHomeDir(t *testing.T) {
 	cfg := DefaultCLIConfig()
 	home, _ := os.UserHomeDir()
 
-	expected := filepath.Join(home, ".claude-afk", "repos")
+	expected := filepath.Join(home, ".cq", "repos")
 	if cfg.Workspace != expected {
 		t.Errorf("workspace: got %q, want %q", cfg.Workspace, expected)
 	}
@@ -148,7 +148,7 @@ func TestResolveBranch_IssueOverrides(t *testing.T) {
 
 func TestResolveBranch_Default(t *testing.T) {
 	issue := IssueConfig{}
-	if got := ResolveBranch(issue, 42); got != "claude-afk/issue-42" {
-		t.Errorf("got %q, want %q", got, "claude-afk/issue-42")
+	if got := ResolveBranch(issue, 42); got != "cq/issue-42" {
+		t.Errorf("got %q, want %q", got, "cq/issue-42")
 	}
 }
