@@ -7,9 +7,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Version is set via ldflags at build time.
+var Version = "dev"
+
 var rootCmd = &cobra.Command{
-	Use:   "claude-afk",
-	Short: "Autonomous GitHub issue worker powered by Claude",
+	Use:                "cq",
+	Short:              "Autonomous GitHub issue worker powered by Claude",
+	Version:            Version,
+	CompletionOptions:  cobra.CompletionOptions{DisableDefaultCmd: true},
+	RunE:               runWatch,
 }
 
 // Execute runs the root command.
