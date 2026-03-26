@@ -53,6 +53,7 @@ cq --local --command "my-ai-tool"
 | `--local` | `false` | Use current directory instead of cloning |
 | `--command` | | Custom command to run (prompt via stdin, default: Claude CLI) |
 | `--prompt-file` | `~/.cq/prompt.tmpl` | Path to prompt template file |
+| `--dry-run` | `false` | Run command but skip push/PR (print diff instead) |
 | `--max-retries` | `3` | Max retry attempts per issue |
 | `--log-file` | | Log file path (defaults to stdout) |
 | `--ntfy-topic` | | [ntfy.sh](https://ntfy.sh) topic for error notifications |
@@ -81,6 +82,9 @@ On first run, cq writes a default prompt template to `~/.cq/prompt.tmpl`. Edit i
 | `{{.Number}}` | Issue number |
 | `{{.Title}}` | Issue title |
 | `{{.Body}}` | Issue body |
+| `{{.Author}}` | Issue author's GitHub username |
+| `{{.Labels}}` | Comma-separated list of issue labels |
+| `{{.DefaultBranch}}` | Repository default branch |
 
 ## Custom Commands
 
@@ -109,6 +113,7 @@ branch: custom-branch-name
 |-----|--------|-------------|
 | `strategy` | `pr`, `commit` | Override the default git strategy |
 | `branch` | any string | Custom branch name (default: `cq/issue-{N}`) |
+| `post-command` | any command | Shell command to run after PR creation (`$PR_URL` and `$PR_NUMBER` available) |
 
 ## Development
 
