@@ -9,10 +9,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/google/go-github/v69/github"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tinybluerobots/issuebot/internal/config"
 	"github.com/tinybluerobots/issuebot/internal/notify"
 	"github.com/tinybluerobots/issuebot/internal/prompt"
@@ -32,9 +33,7 @@ func mockCommand(t *testing.T, dir string, output string, exitCode int) string {
 	script := filepath.Join(dir, "mock-cmd")
 
 	content := fmt.Sprintf("#!/bin/bash\necho '%s'\nexit %d\n", output, exitCode)
-	if err := os.WriteFile(script, []byte(content), 0755); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(script, []byte(content), 0755))
 
 	return script
 }
@@ -51,9 +50,7 @@ func initBareRepo(t *testing.T, dir string) string {
 	run(t, "-C", work, "config", "user.email", "test@test.com")
 	run(t, "-C", work, "config", "user.name", "test")
 
-	if err := os.WriteFile(filepath.Join(work, "README.md"), []byte("# test"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(filepath.Join(work, "README.md"), []byte("# test"), 0644))
 
 	run(t, "-C", work, "add", ".")
 	run(t, "-C", work, "commit", "-m", "init")
@@ -68,9 +65,7 @@ func run(t *testing.T, args ...string) {
 	cmd := exec.CommandContext(context.Background(), "git", args...)
 
 	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("git %v failed: %v", args, err)
-	}
+	require.NoError(t, cmd.Run(), "git %v failed", args)
 }
 
 func testWorker(t *testing.T) *Worker {
@@ -79,14 +74,10 @@ func testWorker(t *testing.T) *Worker {
 	storePath := filepath.Join(dir, "state.json")
 
 	st, err := state.Load(storePath)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	promptFile := filepath.Join(dir, "prompt.tmpl")
-	if err := prompt.EnsureFile(promptFile); err != nil {
-		t.Fatalf("ensure prompt file: %v", err)
-	}
+	require.NoError(t, prompt.EnsureFile(promptFile), "ensure prompt file")
 
 	return &Worker{
 		State:     st,
@@ -99,9 +90,7 @@ func TestWorker_BuildPrompt(t *testing.T) {
 	w := testWorker(t)
 
 	promptFile := filepath.Join(t.TempDir(), "prompt.tmpl")
-	if err := prompt.EnsureFile(promptFile); err != nil {
-		t.Fatalf("ensure prompt file: %v", err)
-	}
+	require.NoError(t, prompt.EnsureFile(promptFile), "ensure prompt file")
 
 	w.CLIConfig.PromptFile = promptFile
 
@@ -115,14 +104,10 @@ func TestWorker_BuildPrompt(t *testing.T) {
 	}
 
 	p, err := w.BuildPrompt("myorg/myrepo", issue, "main")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
 	for _, want := range []string{"42", "Fix the widget", "The widget is broken", "myorg/myrepo", "ISSUE_RESOLVED", "ISSUE_FAILED"} {
-		if !strings.Contains(p, want) {
-			t.Errorf("prompt missing %q", want)
-		}
+		assert.Contains(t, p, want)
 	}
 }
 
@@ -134,13 +119,9 @@ func TestWorker_RunCommand_Success(t *testing.T) {
 	w.CLIConfig.Command = script
 
 	result, err := w.RunCommand(context.Background(), dir, "fix the thing")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
-	if !strings.Contains(result, "ISSUE_RESOLVED") {
-		t.Errorf("result = %q, want ISSUE_RESOLVED", result)
-	}
+	assert.Contains(t, result, "ISSUE_RESOLVED")
 }
 
 func TestWorker_RunCommand_Failure(t *testing.T) {
@@ -151,9 +132,7 @@ func TestWorker_RunCommand_Failure(t *testing.T) {
 	w.CLIConfig.Command = script
 
 	_, err := w.RunCommand(context.Background(), dir, "fix the thing")
-	if err == nil {
-		t.Fatal("expected error for non-zero exit")
-	}
+	require.Error(t, err, "expected error for non-zero exit")
 }
 
 func TestWorker_RunCommand_PromptSubstitution(t *testing.T) {
@@ -162,13 +141,9 @@ func TestWorker_RunCommand_PromptSubstitution(t *testing.T) {
 	dir := t.TempDir()
 
 	result, err := w.RunCommand(context.Background(), dir, "hello world")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
-	if result != "hello world" {
-		t.Errorf("result = %q, want %q", result, "hello world")
-	}
+	assert.Equal(t, "hello world", result)
 }
 
 func TestWorker_RunCommand_PromptPlaceholder(t *testing.T) {
@@ -177,13 +152,9 @@ func TestWorker_RunCommand_PromptPlaceholder(t *testing.T) {
 	dir := t.TempDir()
 
 	result, err := w.RunCommand(context.Background(), dir, "fix the bug")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
-	if result != "fix the bug" {
-		t.Errorf("result = %q, want %q", result, "fix the bug")
-	}
+	assert.Equal(t, "fix the bug", result)
 }
 
 func TestWorker_RunCommand_PromptPlaceholder_QuotesHandled(t *testing.T) {
@@ -192,13 +163,9 @@ func TestWorker_RunCommand_PromptPlaceholder_QuotesHandled(t *testing.T) {
 	dir := t.TempDir()
 
 	result, err := w.RunCommand(context.Background(), dir, "it's a test")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
-	if result != "it's a test" {
-		t.Errorf("result = %q, want %q", result, "it's a test")
-	}
+	assert.Equal(t, "it's a test", result)
 }
 
 func TestWorker_EnsureRepo_Clone(t *testing.T) {
@@ -207,14 +174,11 @@ func TestWorker_EnsureRepo_Clone(t *testing.T) {
 	bare := initBareRepo(t, dir)
 
 	repoDir, err := w.EnsureRepo(context.Background(), bare, "testorg/testrepo")
-	if err != nil {
-		t.Fatalf("EnsureRepo failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	gitDir := filepath.Join(repoDir, ".git")
-	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
-		t.Fatalf(".git dir does not exist at %s", gitDir)
-	}
+	_, err = os.Stat(gitDir)
+	require.NoError(t, err, ".git dir does not exist at %s", gitDir)
 }
 
 func TestWorker_ProcessIssue_PRStrategy(t *testing.T) {
@@ -227,9 +191,7 @@ func TestWorker_ProcessIssue_PRStrategy(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v3/repos/testorg/testrepo/pulls", func(w http.ResponseWriter, r *http.Request) {
 		pr := &github.PullRequest{Number: &prNum, HTMLURL: &prURL}
-		if err := json.NewEncoder(w).Encode(pr); err != nil {
-			t.Errorf("encode PR response: %v", err)
-		}
+		assert.NoError(t, json.NewEncoder(w).Encode(pr))
 	})
 
 	ts := httptest.NewServer(mux)
@@ -243,9 +205,7 @@ func TestWorker_ProcessIssue_PRStrategy(t *testing.T) {
 	cmdPath := mockCommand(t, dir, "ISSUE_RESOLVED", 0)
 
 	promptFile := filepath.Join(dir, "prompt.tmpl")
-	if err := prompt.EnsureFile(promptFile); err != nil {
-		t.Fatalf("ensure prompt file: %v", err)
-	}
+	require.NoError(t, prompt.EnsureFile(promptFile), "ensure prompt file")
 
 	w := &Worker{
 		Client:    ghClient,
@@ -268,13 +228,9 @@ func TestWorker_ProcessIssue_PRStrategy(t *testing.T) {
 	w.ProcessIssue(context.Background(), "testorg/testrepo", issue)
 
 	st2, ok := w.State.Get("testorg/testrepo#1")
-	if !ok {
-		t.Fatal("state not found after ProcessIssue")
-	}
+	require.True(t, ok, "state not found after ProcessIssue")
 
-	if st2.Status != state.StatusCompleted {
-		t.Errorf("status = %q, want %q (error: %s)", st2.Status, state.StatusCompleted, st2.Error)
-	}
+	assert.Equal(t, state.StatusCompleted, st2.Status, "error: %s", st2.Error)
 }
 
 func TestWorker_ProcessIssue_DryRun(t *testing.T) {
@@ -287,9 +243,7 @@ func TestWorker_ProcessIssue_DryRun(t *testing.T) {
 	cmdPath := mockCommand(t, dir, "ISSUE_RESOLVED", 0)
 
 	promptFile := filepath.Join(dir, "prompt.tmpl")
-	if err := prompt.EnsureFile(promptFile); err != nil {
-		t.Fatalf("ensure prompt file: %v", err)
-	}
+	require.NoError(t, prompt.EnsureFile(promptFile), "ensure prompt file")
 
 	w := &Worker{
 		State:     st,
@@ -311,17 +265,10 @@ func TestWorker_ProcessIssue_DryRun(t *testing.T) {
 	w.ProcessIssue(context.Background(), "testorg/testrepo", issue)
 
 	s, ok := w.State.Get("testorg/testrepo#1")
-	if !ok {
-		t.Fatal("state not found")
-	}
+	require.True(t, ok, "state not found")
 
-	if s.Status != state.StatusCompleted {
-		t.Errorf("status = %q, want %q (error: %s)", s.Status, state.StatusCompleted, s.Error)
-	}
-
-	if s.PRURL != "" {
-		t.Errorf("dry-run should not create a PR, got %s", s.PRURL)
-	}
+	assert.Equal(t, state.StatusCompleted, s.Status, "error: %s", s.Error)
+	assert.Empty(t, s.PRURL, "dry-run should not create a PR")
 }
 
 func TestWorker_ProcessIssue_PostCommand(t *testing.T) {
@@ -335,17 +282,13 @@ func TestWorker_ProcessIssue_PostCommand(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v3/repos/testorg/testrepo/pulls", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			if err := json.NewEncoder(w).Encode([]*github.PullRequest{}); err != nil {
-				t.Errorf("encode: %v", err)
-			}
+			assert.NoError(t, json.NewEncoder(w).Encode([]*github.PullRequest{}))
 
 			return
 		}
 
 		pr := &github.PullRequest{Number: &prNum, HTMLURL: &prURL}
-		if err := json.NewEncoder(w).Encode(pr); err != nil {
-			t.Errorf("encode: %v", err)
-		}
+		assert.NoError(t, json.NewEncoder(w).Encode(pr))
 	})
 
 	ts := httptest.NewServer(mux)
@@ -359,9 +302,7 @@ func TestWorker_ProcessIssue_PostCommand(t *testing.T) {
 	cmdPath := mockCommand(t, dir, "ISSUE_RESOLVED", 0)
 
 	promptFile := filepath.Join(dir, "prompt.tmpl")
-	if err := prompt.EnsureFile(promptFile); err != nil {
-		t.Fatalf("ensure prompt file: %v", err)
-	}
+	require.NoError(t, prompt.EnsureFile(promptFile), "ensure prompt file")
 
 	postCmd := fmt.Sprintf("touch %s && echo $PR_URL > %s", markerFile, markerFile)
 	issueBody := fmt.Sprintf("Fix something\n<!-- issuebot\npost-command: %s\n-->", postCmd)
@@ -386,13 +327,9 @@ func TestWorker_ProcessIssue_PostCommand(t *testing.T) {
 	w.ProcessIssue(context.Background(), "testorg/testrepo", issue)
 
 	data, err := os.ReadFile(markerFile)
-	if err != nil {
-		t.Fatalf("post-command did not run: %v", err)
-	}
+	require.NoError(t, err, "post-command did not run")
 
-	if !strings.Contains(string(data), prURL) {
-		t.Errorf("post-command output = %q, want to contain %q", string(data), prURL)
-	}
+	assert.Contains(t, string(data), prURL)
 }
 
 func TestWorker_ProcessIssue_IssueConfigOverride(t *testing.T) {
@@ -401,12 +338,8 @@ func TestWorker_ProcessIssue_IssueConfigOverride(t *testing.T) {
 	issueCfg := config.ParseIssueConfig(body)
 
 	strategy := config.ResolveStrategy(cli, issueCfg)
-	if strategy != config.StrategyPR {
-		t.Errorf("strategy = %q, want %q", strategy, config.StrategyPR)
-	}
+	assert.Equal(t, config.StrategyPR, strategy)
 
 	branch := config.ResolveBranch(issueCfg, 5)
-	if branch != "custom-branch" {
-		t.Errorf("branch = %q, want %q", branch, "custom-branch")
-	}
+	assert.Equal(t, "custom-branch", branch)
 }
