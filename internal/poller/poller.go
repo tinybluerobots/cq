@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v69/github"
+	"github.com/tinybluerobots/cq/internal/ratelimit"
 )
 
 // ErrInvalidRepoFormat is returned when a repo string is not in "owner/name" format.
@@ -38,6 +39,10 @@ func (p *Poller) ListRepos(ctx context.Context) ([]string, error) {
 	for {
 		repos, resp, err := p.Client.Repositories.ListByOrg(ctx, p.Org, opts)
 		if err != nil {
+			if ratelimit.Wait(ctx, err) {
+				continue
+			}
+
 			return nil, fmt.Errorf("listing repos for org %s: %w", p.Org, err)
 		}
 
@@ -82,6 +87,10 @@ func (p *Poller) ListIssues(ctx context.Context, repo string) ([]*github.Issue, 
 	for {
 		issues, resp, err := p.Client.Issues.ListByRepo(ctx, owner, name, opts)
 		if err != nil {
+			if ratelimit.Wait(ctx, err) {
+				continue
+			}
+
 			return nil, fmt.Errorf("listing issues for %s: %w", repo, err)
 		}
 

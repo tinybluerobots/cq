@@ -11,11 +11,11 @@ import (
 var Version = "dev"
 
 var rootCmd = &cobra.Command{
-	Use:                "cq",
-	Short:              "Autonomous GitHub issue worker powered by Claude",
-	Version:            Version,
-	CompletionOptions:  cobra.CompletionOptions{DisableDefaultCmd: true},
-	RunE:               runWatch,
+	Use:               "cq",
+	Short:             "Autonomous GitHub issue worker powered by Claude",
+	Version:           Version,
+	CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
+	RunE:              runWatch,
 }
 
 // Execute runs the root command.
