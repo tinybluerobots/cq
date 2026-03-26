@@ -31,8 +31,9 @@ type CLIConfig struct {
 
 // IssueConfig holds per-issue configuration extracted from issue body.
 type IssueConfig struct {
-	Strategy string `yaml:"strategy"`
-	Branch   string `yaml:"branch"`
+	Strategy    string `yaml:"strategy"`
+	Branch      string `yaml:"branch"`
+	PostCommand string `yaml:"post-command"`
 }
 
 var issueConfigRe = regexp.MustCompile(`(?s)<!--\s*cq\s*\n(.*?)\n-->`)

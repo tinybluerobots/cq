@@ -266,7 +266,7 @@ func (w *Worker) ProcessIssue(ctx context.Context, repo string, issue *github.Is
 
 	// Push and optionally create PR.
 	if strategy == "pr" {
-		if err := w.pushAndCreatePR(ctx, key, logger, repoDir, repo, branch, issue, attempts); err != nil {
+		if err := w.pushAndCreatePR(ctx, key, logger, repoDir, repo, branch, issue, attempts, issueCfg); err != nil {
 			return
 		}
 	} else {
@@ -295,7 +295,25 @@ func (w *Worker) ProcessIssue(ctx context.Context, repo string, issue *github.Is
 
 // pushAndCreatePR pushes the branch and creates a pull request via the GitHub API.
 // It returns a non-nil error if any step failed (the failure is already recorded via w.fail).
-func (w *Worker) pushAndCreatePR(ctx context.Context, key string, logger *slog.Logger, repoDir, repo, branch string, issue *github.Issue, attempts int) error {
+func (w *Worker) runPostCommand(ctx context.Context, logger *slog.Logger, postCommand, prURL string, prNumber int) {
+	if postCommand == "" {
+		return
+	}
+
+	cmd := exec.CommandContext(ctx, "sh", "-c", postCommand)
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("PR_URL=%s", prURL),
+		fmt.Sprintf("PR_NUMBER=%d", prNumber),
+	)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		logger.Error("post-command failed", "error", err)
+	}
+}
+
+func (w *Worker) pushAndCreatePR(ctx context.Context, key string, logger *slog.Logger, repoDir, repo, branch string, issue *github.Issue, attempts int, issueCfg config.IssueConfig) error {
 	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "push", "-u", "origin", branch)
 
 	cmd.Stderr = os.Stderr
@@ -331,6 +349,8 @@ func (w *Worker) pushAndCreatePR(ctx context.Context, key string, logger *slog.L
 			LastAttempt: time.Now(),
 			PRURL:       pr.GetHTMLURL(),
 		})
+
+		w.runPostCommand(ctx, logger, issueCfg.PostCommand, pr.GetHTMLURL(), pr.GetNumber())
 
 		return nil
 	}
@@ -369,6 +389,8 @@ func (w *Worker) pushAndCreatePR(ctx context.Context, key string, logger *slog.L
 		LastAttempt: time.Now(),
 		PRURL:       pr.GetHTMLURL(),
 	})
+
+	w.runPostCommand(ctx, logger, issueCfg.PostCommand, pr.GetHTMLURL(), pr.GetNumber())
 
 	return nil
 }

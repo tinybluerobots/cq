@@ -291,6 +291,77 @@ func TestWorker_ProcessIssue_DryRun(t *testing.T) {
 	}
 }
 
+func TestWorker_ProcessIssue_PostCommand(t *testing.T) {
+	dir := t.TempDir()
+	bare := initBareRepo(t, dir)
+
+	markerFile := filepath.Join(dir, "post-command-ran")
+
+	prNum := 99
+	prURL := "https://github.com/testorg/testrepo/pull/99"
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v3/repos/testorg/testrepo/pulls", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			if err := json.NewEncoder(w).Encode([]*github.PullRequest{}); err != nil {
+				t.Errorf("encode: %v", err)
+			}
+			return
+		}
+		pr := &github.PullRequest{Number: &prNum, HTMLURL: &prURL}
+		if err := json.NewEncoder(w).Encode(pr); err != nil {
+			t.Errorf("encode: %v", err)
+		}
+	})
+
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	ghClient, _ := github.NewClient(nil).WithEnterpriseURLs(ts.URL+"/", ts.URL+"/")
+
+	storePath := filepath.Join(dir, "state.json")
+	st, _ := state.Load(storePath)
+
+	claudeOutput := `{"type":"result","result":"ISSUE_RESOLVED #1"}`
+	claudePath := mockClaude(t, dir, claudeOutput, 0)
+
+	promptFile := filepath.Join(dir, "prompt.tmpl")
+	if err := prompt.EnsureFile(promptFile); err != nil {
+		t.Fatalf("ensure prompt file: %v", err)
+	}
+
+	postCmd := fmt.Sprintf("touch %s && echo $PR_URL > %s", markerFile, markerFile)
+	issueBody := fmt.Sprintf("Fix something\n<!-- cq\npost-command: %s\n-->", postCmd)
+
+	w := &Worker{
+		Client:     ghClient,
+		State:      st,
+		Notifier:   notify.New(""),
+		CLIConfig:  config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile},
+		Workspace:  filepath.Join(dir, "repos"),
+		ClaudePath: claudePath,
+		CloneURL:   bare,
+	}
+
+	issueNum := 1
+	issueTitle := "Test issue"
+	issue := &github.Issue{
+		Number: &issueNum,
+		Title:  &issueTitle,
+		Body:   &issueBody,
+	}
+
+	w.ProcessIssue(context.Background(), "testorg/testrepo", issue)
+
+	data, err := os.ReadFile(markerFile)
+	if err != nil {
+		t.Fatalf("post-command did not run: %v", err)
+	}
+
+	if !strings.Contains(string(data), prURL) {
+		t.Errorf("post-command output = %q, want to contain %q", string(data), prURL)
+	}
+}
+
 func TestWorker_ProcessIssue_IssueConfigOverride(t *testing.T) {
 	cli := config.CLIConfig{Strategy: "direct"}
 	body := "<!-- cq\nstrategy: pr\nbranch: custom-branch\n-->"

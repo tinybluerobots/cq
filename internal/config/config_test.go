@@ -152,3 +152,21 @@ func TestResolveBranch_Default(t *testing.T) {
 		t.Errorf("got %q, want %q", got, "cq/issue-42")
 	}
 }
+
+func TestParseIssueConfig_PostCommand(t *testing.T) {
+	body := "<!-- cq\npost-command: gh pr comment $PR_NUMBER -b 'ready'\n-->"
+	cfg := ParseIssueConfig(body)
+
+	if cfg.PostCommand != "gh pr comment $PR_NUMBER -b 'ready'" {
+		t.Errorf("PostCommand = %q", cfg.PostCommand)
+	}
+}
+
+func TestParseIssueConfig_PostCommandEmpty(t *testing.T) {
+	body := "<!-- cq\nstrategy: pr\n-->"
+	cfg := ParseIssueConfig(body)
+
+	if cfg.PostCommand != "" {
+		t.Errorf("PostCommand = %q, want empty", cfg.PostCommand)
+	}
+}
