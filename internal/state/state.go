@@ -48,11 +48,8 @@ func Load(path string) (*Store, error) {
 	}
 
 	if err := json.Unmarshal(data, s); err != nil {
-		slog.Warn("corrupt state file, starting fresh", "path", path, "error", err)
-
-		s.Issues = make(map[string]IssueState)
-
-		return s, nil
+		slog.Warn("corrupt state file, trying backup", "path", path, "error", err)
+		return loadBackup(path)
 	}
 
 	if s.Issues == nil {
@@ -66,6 +63,15 @@ func Load(path string) (*Store, error) {
 func (s *Store) Save() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	// Back up current file before overwriting.
+	if _, err := os.Stat(s.path); err == nil {
+		bakPath := s.path + ".bak"
+		data, err := os.ReadFile(s.path)
+		if err == nil {
+			_ = os.WriteFile(bakPath, data, 0644)
+		}
+	}
 
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
@@ -109,6 +115,34 @@ func (s *Store) RecoverCrashed() {
 			s.Issues[k] = v
 		}
 	}
+}
+
+func loadBackup(path string) (*Store, error) {
+	bakPath := path + ".bak"
+	s := &Store{
+		Issues: make(map[string]IssueState),
+		path:   path,
+	}
+
+	data, err := os.ReadFile(bakPath)
+	if err != nil {
+		slog.Warn("no backup available, starting fresh", "path", bakPath)
+		return s, nil
+	}
+
+	if err := json.Unmarshal(data, s); err != nil {
+		slog.Warn("backup also corrupt, starting fresh", "path", bakPath, "error", err)
+		return s, nil
+	}
+
+	if s.Issues == nil {
+		s.Issues = make(map[string]IssueState)
+	}
+
+	s.path = path
+	slog.Info("recovered state from backup", "path", bakPath, "issues", len(s.Issues))
+
+	return s, nil
 }
 
 // ShouldProcess returns true if the issue should be processed.

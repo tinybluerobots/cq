@@ -152,6 +152,76 @@ func TestStore_ShouldProcess(t *testing.T) {
 	}
 }
 
+func TestStore_Save_CreatesBackup(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "state.json")
+
+	st, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	st.Set("org/repo#1", IssueState{Status: StatusCompleted, Attempts: 1})
+
+	if err := st.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	bakPath := path + ".bak"
+	if _, err := os.Stat(bakPath); !os.IsNotExist(err) {
+		t.Fatal("backup should not exist after first save")
+	}
+
+	st.Set("org/repo#2", IssueState{Status: StatusFailed, Attempts: 2})
+
+	if err := st.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(bakPath); err != nil {
+		t.Fatalf("backup not created: %v", err)
+	}
+
+	bakStore, err := Load(bakPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := bakStore.Issues["org/repo#1"]; !ok {
+		t.Error("backup missing org/repo#1")
+	}
+
+	if _, ok := bakStore.Issues["org/repo#2"]; ok {
+		t.Error("backup should not contain org/repo#2")
+	}
+}
+
+func TestLoad_FallsBackToBackup(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "state.json")
+	bakPath := path + ".bak"
+
+	bak, _ := Load(bakPath)
+	bak.Set("org/repo#1", IssueState{Status: StatusCompleted, Attempts: 1})
+
+	if err := bak.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(path, []byte("{invalid json"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	st, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := st.Issues["org/repo#1"]; !ok {
+		t.Error("should have recovered org/repo#1 from backup")
+	}
+}
+
 func TestStore_CorruptFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state.json")
 	if err := os.WriteFile(path, []byte("not json {{{garbage"), 0644); err != nil {
