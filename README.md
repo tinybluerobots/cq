@@ -1,5 +1,7 @@
 # cq
 
+[![Go Version](https://img.shields.io/badge/Go-1.26-blue?logo=go)](https://pkg.go.dev/github.com/tinybluerobots/cq)
+
 Autonomous GitHub issue processor powered by any CLI tool. Watches repos for open issues, dispatches a command to resolve them, and pushes fixes or opens PRs.
 
 ## Install
