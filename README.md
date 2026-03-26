@@ -186,7 +186,7 @@ issuebot works best when issues are **atomic and self-contained** — each issue
 **Recommended workflow:**
 
 1. **Plan first** — use your AI tool's planning capabilities to design the feature or fix
-2. **Create atomic issues** — break the plan into small, focused issues where each one contains the relevant context (files to change, acceptance criteria, dependencies). See [plan-to-issues.md](plan-to-issues.md) for a guide on writing effective issues
+2. **Create atomic issues** — break the plan into small, focused issues where each one contains the relevant context (files to change, acceptance criteria, dependencies). This repo includes a [plan-to-issues](plan-to-issues.md) skill you can install locally in your AI tool to automate this
 3. **Let issuebot work** — it picks up each issue, resolves it independently, and pushes the result
 
 Vague issues like "refactor the auth system" will produce vague results. An issue that says "extract `validateToken` from `auth.go` into a new `token.go` file, update imports in `server.go` and `middleware.go`, run `mise run test`" gives the AI everything it needs.
