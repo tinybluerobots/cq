@@ -53,7 +53,7 @@ issuebot --repo owner/repo --strategy pr --command "copilot -p {prompt} --yolo"
 # Poll every 5 minutes with 10 workers
 issuebot --org myorg --interval 5m --workers 10 --command "gemini -p {prompt} --yolo"
 
-# Get notified on failures via ntfy.sh
+# Get notified via ntfy.sh
 issuebot --repo owner/repo --ntfy-topic my-alerts --command "copilot -p {prompt} --yolo"
 
 # Log to a file for background operation
@@ -80,7 +80,7 @@ issuebot --local --command "./my-issue-handler.sh {prompt}"
 | `--dry-run` | `false` | Run command but skip push/PR (print diff instead) |
 | `--max-retries` | `3` | Max retry attempts per issue |
 | `--log-file` | | Log file path (defaults to stdout) |
-| `--ntfy-topic` | | [ntfy.sh](https://ntfy.sh) topic for error notifications |
+| `--ntfy-topic` | | [ntfy.sh](https://ntfy.sh) topic for notifications |
 
 
 ### Authentication
