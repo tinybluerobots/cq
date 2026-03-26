@@ -1,7 +1,8 @@
 version: 2
 
 builds:
-  - main: ./main.go
+  - id: issuebot
+    main: ./main.go
     binary: issuebot
     env:
       - CGO_ENABLED=0
@@ -29,6 +30,18 @@ homebrew_casks:
     homepage: https://github.com/tinybluerobots/issuebot
     description: Autonomous GitHub issue processor powered by any CLI tool
     license: MIT
+
+dockers_v2:
+  - ids:
+      - issuebot
+    images:
+      - ghcr.io/tinybluerobots/issuebot
+    tags:
+      - "{{ .Version }}"
+      - latest
+    platforms:
+      - linux/amd64
+      - linux/arm64
 
 changelog:
   sort: asc

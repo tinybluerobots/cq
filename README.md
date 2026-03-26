@@ -82,6 +82,19 @@ issuebot --local --command "./my-issue-handler.sh {prompt}"
 | `--log-file` | | Log file path (defaults to stdout) |
 | `--ntfy-topic` | | [ntfy.sh](https://ntfy.sh) topic for error notifications |
 
+### Docker
+
+Mount your CLI tool and any config it needs from the host:
+
+```bash
+docker run -v /usr/local/bin/claude:/usr/local/bin/claude \
+  -v ~/.claude:/root/.claude \
+  ghcr.io/tinybluerobots/issuebot:latest \
+  --repo owner/repo --command "claude -p {prompt} --dangerously-skip-permissions"
+```
+
+Adjust the mounts for whichever CLI you use (e.g. `copilot`, `gemini`).
+
 ### Authentication
 
 Requires a GitHub token. Set `GITHUB_TOKEN` or run `gh auth login`.
