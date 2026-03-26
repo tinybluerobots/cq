@@ -33,7 +33,7 @@ func TestPoller_ListRepos_Org(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		require.NoError(t, json.NewEncoder(w).Encode(repos))
+		assert.NoError(t, json.NewEncoder(w).Encode(repos))
 	}))
 	defer srv.Close()
 
@@ -71,7 +71,7 @@ func TestPoller_ListIssues_WithLabel(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		require.NoError(t, json.NewEncoder(w).Encode(issues))
+		assert.NoError(t, json.NewEncoder(w).Encode(issues))
 	}))
 	defer srv.Close()
 
@@ -94,7 +94,7 @@ func TestPoller_ListIssues_WithAuthor(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		require.NoError(t, json.NewEncoder(w).Encode(issues))
+		assert.NoError(t, json.NewEncoder(w).Encode(issues))
 	}))
 	defer srv.Close()
 
@@ -118,7 +118,7 @@ func TestPoller_ListIssues_NoLabel(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		require.NoError(t, json.NewEncoder(w).Encode(issues))
+		assert.NoError(t, json.NewEncoder(w).Encode(issues))
 	}))
 	defer srv.Close()
 
