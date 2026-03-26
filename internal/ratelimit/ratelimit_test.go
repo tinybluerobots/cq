@@ -7,20 +7,17 @@ import (
 	"time"
 
 	"github.com/google/go-github/v69/github"
+	"github.com/stretchr/testify/assert"
 )
 
 var errGeneric = fmt.Errorf("some error")
 
 func TestWait_NotRateLimited(t *testing.T) {
-	if Wait(context.Background(), errGeneric) {
-		t.Error("expected false for non-rate-limit error")
-	}
+	assert.False(t, Wait(context.Background(), errGeneric))
 }
 
 func TestWait_NilError(t *testing.T) {
-	if Wait(context.Background(), nil) {
-		t.Error("expected false for nil error")
-	}
+	assert.False(t, Wait(context.Background(), nil))
 }
 
 func TestWait_RateLimitError(t *testing.T) {
@@ -36,13 +33,8 @@ func TestWait_RateLimitError(t *testing.T) {
 	ok := Wait(context.Background(), err)
 	elapsed := time.Since(start)
 
-	if !ok {
-		t.Error("expected true for rate limit error")
-	}
-
-	if elapsed < 100*time.Millisecond {
-		t.Errorf("waited only %v, expected >= 100ms", elapsed)
-	}
+	assert.True(t, ok)
+	assert.GreaterOrEqual(t, elapsed, 100*time.Millisecond, "waited only %v", elapsed)
 }
 
 func TestWait_CancelledContext(t *testing.T) {
@@ -57,7 +49,5 @@ func TestWait_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	if Wait(ctx, err) {
-		t.Error("expected false for cancelled context")
-	}
+	assert.False(t, Wait(ctx, err))
 }
