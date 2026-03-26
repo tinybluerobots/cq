@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseIssueConfig_Full(t *testing.T) {
@@ -19,26 +21,16 @@ branch: my-feature
 More text.`
 
 	cfg := ParseIssueConfig(body)
-	if cfg.Strategy != StrategyCommit {
-		t.Errorf("strategy: got %q, want %q", cfg.Strategy, StrategyCommit)
-	}
-
-	if cfg.Branch != "my-feature" {
-		t.Errorf("branch: got %q, want %q", cfg.Branch, "my-feature")
-	}
+	assert.Equal(t, StrategyCommit, cfg.Strategy)
+	assert.Equal(t, "my-feature", cfg.Branch)
 }
 
 func TestParseIssueConfig_Empty(t *testing.T) {
 	body := "Just a normal issue body with no config block."
 
 	cfg := ParseIssueConfig(body)
-	if cfg.Strategy != "" {
-		t.Errorf("strategy: got %q, want empty", cfg.Strategy)
-	}
-
-	if cfg.Branch != "" {
-		t.Errorf("branch: got %q, want empty", cfg.Branch)
-	}
+	assert.Equal(t, "", cfg.Strategy)
+	assert.Equal(t, "", cfg.Branch)
 }
 
 func TestParseIssueConfig_PartialFields(t *testing.T) {
@@ -47,13 +39,8 @@ strategy: worktree
 -->`
 
 	cfg := ParseIssueConfig(body)
-	if cfg.Strategy != "worktree" {
-		t.Errorf("strategy: got %q, want %q", cfg.Strategy, "worktree")
-	}
-
-	if cfg.Branch != "" {
-		t.Errorf("branch: got %q, want empty", cfg.Branch)
-	}
+	assert.Equal(t, "worktree", cfg.Strategy)
+	assert.Equal(t, "", cfg.Branch)
 }
 
 func TestParseIssueConfig_UnknownKeysIgnored(t *testing.T) {
@@ -65,13 +52,8 @@ another: thing
 -->`
 
 	cfg := ParseIssueConfig(body)
-	if cfg.Strategy != StrategyPR {
-		t.Errorf("strategy: got %q, want %q", cfg.Strategy, StrategyPR)
-	}
-
-	if cfg.Branch != "fix-123" {
-		t.Errorf("branch: got %q, want %q", cfg.Branch, "fix-123")
-	}
+	assert.Equal(t, StrategyPR, cfg.Strategy)
+	assert.Equal(t, "fix-123", cfg.Branch)
 }
 
 func TestDefaultConfig(t *testing.T) {
@@ -93,9 +75,7 @@ func TestDefaultConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.got != tt.want {
-				t.Errorf("got %v, want %v", tt.got, tt.want)
-			}
+			assert.Equal(t, tt.want, tt.got)
 		})
 	}
 }
@@ -106,9 +86,7 @@ strategy: [broken
 -->`
 
 	cfg := ParseIssueConfig(body)
-	if cfg.Strategy != "" {
-		t.Errorf("expected empty strategy on malformed YAML, got %q", cfg.Strategy)
-	}
+	assert.Equal(t, "", cfg.Strategy)
 }
 
 func TestDefaultConfig_WorkspaceUsesHomeDir(t *testing.T) {
@@ -116,57 +94,39 @@ func TestDefaultConfig_WorkspaceUsesHomeDir(t *testing.T) {
 	home, _ := os.UserHomeDir()
 
 	expected := filepath.Join(home, ".issuebot", "repos")
-	if cfg.Workspace != expected {
-		t.Errorf("workspace: got %q, want %q", cfg.Workspace, expected)
-	}
+	assert.Equal(t, expected, cfg.Workspace)
 }
 
 func TestResolveStrategy_IssueOverrides(t *testing.T) {
 	cli := DefaultCLIConfig()
-
 	issue := IssueConfig{Strategy: StrategyCommit}
-	if got := ResolveStrategy(cli, issue); got != StrategyCommit {
-		t.Errorf("got %q, want %q", got, StrategyCommit)
-	}
+	assert.Equal(t, StrategyCommit, ResolveStrategy(cli, issue))
 }
 
 func TestResolveStrategy_FallbackToCLI(t *testing.T) {
 	cli := DefaultCLIConfig()
-
 	issue := IssueConfig{}
-	if got := ResolveStrategy(cli, issue); got != StrategyCommit {
-		t.Errorf("got %q, want %q", got, StrategyCommit)
-	}
+	assert.Equal(t, StrategyCommit, ResolveStrategy(cli, issue))
 }
 
 func TestResolveBranch_IssueOverrides(t *testing.T) {
 	issue := IssueConfig{Branch: "custom-branch"}
-	if got := ResolveBranch(issue, 42); got != "custom-branch" {
-		t.Errorf("got %q, want %q", got, "custom-branch")
-	}
+	assert.Equal(t, "custom-branch", ResolveBranch(issue, 42))
 }
 
 func TestResolveBranch_Default(t *testing.T) {
 	issue := IssueConfig{}
-	if got := ResolveBranch(issue, 42); got != "issuebot/issue-42" {
-		t.Errorf("got %q, want %q", got, "issuebot/issue-42")
-	}
+	assert.Equal(t, "issuebot/issue-42", ResolveBranch(issue, 42))
 }
 
 func TestParseIssueConfig_PostCommand(t *testing.T) {
 	body := "<!-- issuebot\npost-command: gh pr comment $PR_NUMBER -b 'ready'\n-->"
 	cfg := ParseIssueConfig(body)
-
-	if cfg.PostCommand != "gh pr comment $PR_NUMBER -b 'ready'" {
-		t.Errorf("PostCommand = %q", cfg.PostCommand)
-	}
+	assert.Equal(t, "gh pr comment $PR_NUMBER -b 'ready'", cfg.PostCommand)
 }
 
 func TestParseIssueConfig_PostCommandEmpty(t *testing.T) {
 	body := "<!-- issuebot\nstrategy: pr\n-->"
 	cfg := ParseIssueConfig(body)
-
-	if cfg.PostCommand != "" {
-		t.Errorf("PostCommand = %q, want empty", cfg.PostCommand)
-	}
+	assert.Equal(t, "", cfg.PostCommand)
 }
