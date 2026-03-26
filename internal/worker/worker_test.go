@@ -242,6 +242,55 @@ func TestWorker_ProcessIssue_PRStrategy(t *testing.T) {
 	}
 }
 
+func TestWorker_ProcessIssue_DryRun(t *testing.T) {
+	dir := t.TempDir()
+	bare := initBareRepo(t, dir)
+
+	storePath := filepath.Join(dir, "state.json")
+	st, _ := state.Load(storePath)
+
+	claudeOutput := `{"type":"result","result":"ISSUE_RESOLVED #1"}`
+	claudePath := mockClaude(t, dir, claudeOutput, 0)
+
+	promptFile := filepath.Join(dir, "prompt.tmpl")
+	if err := prompt.EnsureFile(promptFile); err != nil {
+		t.Fatalf("ensure prompt file: %v", err)
+	}
+
+	w := &Worker{
+		State:      st,
+		Notifier:   notify.New(""),
+		CLIConfig:  config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, DryRun: true},
+		Workspace:  filepath.Join(dir, "repos"),
+		ClaudePath: claudePath,
+		CloneURL:   bare,
+	}
+
+	issueNum := 1
+	issueTitle := "Test issue"
+	issueBody := "Fix something"
+	issue := &github.Issue{
+		Number: &issueNum,
+		Title:  &issueTitle,
+		Body:   &issueBody,
+	}
+
+	w.ProcessIssue(context.Background(), "testorg/testrepo", issue)
+
+	s, ok := w.State.Get("testorg/testrepo#1")
+	if !ok {
+		t.Fatal("state not found")
+	}
+
+	if s.Status != state.StatusCompleted {
+		t.Errorf("status = %q, want %q (error: %s)", s.Status, state.StatusCompleted, s.Error)
+	}
+
+	if s.PRURL != "" {
+		t.Errorf("dry-run should not create a PR, got %s", s.PRURL)
+	}
+}
+
 func TestWorker_ProcessIssue_IssueConfigOverride(t *testing.T) {
 	cli := config.CLIConfig{Strategy: "direct"}
 	body := "<!-- cq\nstrategy: pr\nbranch: custom-branch\n-->"

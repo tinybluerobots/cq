@@ -43,6 +43,7 @@ func init() {
 	f.IntVar(&cfg.MaxRetries, "max-retries", cfg.MaxRetries, "Max retries per issue")
 	f.StringVar(&cfg.Workspace, "workspace", cfg.Workspace, "Workspace directory for repo clones")
 	f.BoolVar(&cfg.Local, "local", cfg.Local, "Use current directory instead of cloning")
+	f.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "Run command but skip push/PR (print diff instead)")
 	f.StringVar(&cfg.Command, "command", cfg.Command, "Command to run (prompt via stdin, default: claude)")
 	f.StringVar(&cfg.PromptFile, "prompt-file", cfg.PromptFile, "Path to prompt template file")
 	f.StringVar(&cfg.LogFile, "log-file", cfg.LogFile, "Log file path")

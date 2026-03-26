@@ -22,6 +22,7 @@ type CLIConfig struct {
 	MaxRetries int
 	Workspace  string
 	Local      bool
+	DryRun     bool
 	Command    string
 	PromptFile string
 	LogFile    string
