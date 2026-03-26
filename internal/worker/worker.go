@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"github.com/google/go-github/v69/github"
-	"github.com/tinybluerobots/cq/internal/config"
-	"github.com/tinybluerobots/cq/internal/notify"
-	"github.com/tinybluerobots/cq/internal/poller"
-	"github.com/tinybluerobots/cq/internal/prompt"
-	"github.com/tinybluerobots/cq/internal/ratelimit"
-	"github.com/tinybluerobots/cq/internal/state"
+	"github.com/tinybluerobots/issuebot/internal/config"
+	"github.com/tinybluerobots/issuebot/internal/notify"
+	"github.com/tinybluerobots/issuebot/internal/poller"
+	"github.com/tinybluerobots/issuebot/internal/prompt"
+	"github.com/tinybluerobots/issuebot/internal/ratelimit"
+	"github.com/tinybluerobots/issuebot/internal/state"
 )
 
 // Worker processes GitHub issues by invoking a configured command.
@@ -56,11 +56,11 @@ func (w *Worker) cloneRepo(ctx context.Context, cloneURL, repoDir string) (strin
 		return "", fmt.Errorf("git clone: %w", err)
 	}
 
-	if err := exec.CommandContext(ctx, "git", "-C", repoDir, "config", "user.email", "cq@bot").Run(); err != nil {
+	if err := exec.CommandContext(ctx, "git", "-C", repoDir, "config", "user.email", "issuebot@bot").Run(); err != nil {
 		return "", fmt.Errorf("git config user.email: %w", err)
 	}
 
-	if err := exec.CommandContext(ctx, "git", "-C", repoDir, "config", "user.name", "cq").Run(); err != nil {
+	if err := exec.CommandContext(ctx, "git", "-C", repoDir, "config", "user.name", "issuebot").Run(); err != nil {
 		return "", fmt.Errorf("git config user.name: %w", err)
 	}
 
@@ -306,7 +306,7 @@ func (w *Worker) pushAndCreatePR(ctx context.Context, key string, logger *slog.L
 	}
 
 	prTitle := fmt.Sprintf("Fix #%d: %s", issue.GetNumber(), issue.GetTitle())
-	prBody := fmt.Sprintf("Resolves #%d\n\nAutomated by cq.", issue.GetNumber())
+	prBody := fmt.Sprintf("Resolves #%d\n\nAutomated by issuebot.", issue.GetNumber())
 	base := "main"
 
 	var pr *github.PullRequest
@@ -359,7 +359,7 @@ func (w *Worker) fail(ctx context.Context, key string, logger *slog.Logger, atte
 		logger.Error("save state", "error", err)
 	}
 
-	if err := w.Notifier.Send(ctx, fmt.Sprintf("cq failed %s: %s", key, reason)); err != nil {
+	if err := w.Notifier.Send(ctx, fmt.Sprintf("issuebot failed %s: %s", key, reason)); err != nil {
 		logger.Error("send notification", "error", err)
 	}
 }

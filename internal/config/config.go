@@ -36,7 +36,7 @@ type IssueConfig struct {
 	PostCommand string `yaml:"post-command"`
 }
 
-var issueConfigRe = regexp.MustCompile(`(?s)<!--\s*cq\s*\n(.*?)\n-->`)
+var issueConfigRe = regexp.MustCompile(`(?s)<!--\s*issuebot\s*\n(.*?)\n-->`)
 
 // DefaultCLIConfig returns a CLIConfig with sensible defaults.
 func DefaultCLIConfig() CLIConfig {
@@ -52,7 +52,7 @@ func DefaultCLIConfig() CLIConfig {
 }
 
 // ParseIssueConfig extracts an IssueConfig from an issue body.
-// It looks for a <!-- cq ... --> HTML comment block containing YAML.
+// It looks for a <!-- issuebot ... --> HTML comment block containing YAML.
 func ParseIssueConfig(body string) IssueConfig {
 	var cfg IssueConfig
 
@@ -77,29 +77,29 @@ func ResolveStrategy(cli CLIConfig, issue IssueConfig) string {
 	return cli.Strategy
 }
 
-// ResolveBranch returns the issue-level branch if set, otherwise cq/issue-{N}.
+// ResolveBranch returns the issue-level branch if set, otherwise issuebot/issue-{N}.
 func ResolveBranch(issue IssueConfig, issueNumber int) string {
 	if issue.Branch != "" {
 		return issue.Branch
 	}
 
-	return "cq/issue-" + strconv.Itoa(issueNumber)
+	return "issuebot/issue-" + strconv.Itoa(issueNumber)
 }
 
 func defaultWorkspace() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return ".cq/repos"
+		return ".issuebot/repos"
 	}
 
-	return filepath.Join(home, ".cq", "repos")
+	return filepath.Join(home, ".issuebot", "repos")
 }
 
 func defaultPromptFile() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return ".cq/prompt.tmpl"
+		return ".issuebot/prompt.tmpl"
 	}
 
-	return filepath.Join(home, ".cq", "prompt.tmpl")
+	return filepath.Join(home, ".issuebot", "prompt.tmpl")
 }

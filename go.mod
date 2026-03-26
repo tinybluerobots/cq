@@ -1,4 +1,4 @@
-module github.com/tinybluerobots/cq
+module github.com/tinybluerobots/issuebot
 
 go 1.26
 

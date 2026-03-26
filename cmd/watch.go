@@ -14,12 +14,12 @@ import (
 
 	"github.com/google/go-github/v69/github"
 	"github.com/spf13/cobra"
-	"github.com/tinybluerobots/cq/internal/config"
-	"github.com/tinybluerobots/cq/internal/notify"
-	"github.com/tinybluerobots/cq/internal/poller"
-	"github.com/tinybluerobots/cq/internal/prompt"
-	"github.com/tinybluerobots/cq/internal/state"
-	"github.com/tinybluerobots/cq/internal/worker"
+	"github.com/tinybluerobots/issuebot/internal/config"
+	"github.com/tinybluerobots/issuebot/internal/notify"
+	"github.com/tinybluerobots/issuebot/internal/poller"
+	"github.com/tinybluerobots/issuebot/internal/prompt"
+	"github.com/tinybluerobots/issuebot/internal/state"
+	"github.com/tinybluerobots/issuebot/internal/worker"
 	"golang.org/x/oauth2"
 )
 
@@ -113,7 +113,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	// State
 	home, _ := os.UserHomeDir()
 
-	stateDir := home + "/.cq"
+	stateDir := home + "/.issuebot"
 	if err := os.MkdirAll(stateDir, 0755); err != nil {
 		return fmt.Errorf("mkdir state dir: %w", err)
 	}

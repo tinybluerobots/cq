@@ -13,10 +13,10 @@ import (
 	"testing"
 
 	"github.com/google/go-github/v69/github"
-	"github.com/tinybluerobots/cq/internal/config"
-	"github.com/tinybluerobots/cq/internal/notify"
-	"github.com/tinybluerobots/cq/internal/prompt"
-	"github.com/tinybluerobots/cq/internal/state"
+	"github.com/tinybluerobots/issuebot/internal/config"
+	"github.com/tinybluerobots/issuebot/internal/notify"
+	"github.com/tinybluerobots/issuebot/internal/prompt"
+	"github.com/tinybluerobots/issuebot/internal/state"
 )
 
 const (
@@ -363,7 +363,7 @@ func TestWorker_ProcessIssue_PostCommand(t *testing.T) {
 	}
 
 	postCmd := fmt.Sprintf("touch %s && echo $PR_URL > %s", markerFile, markerFile)
-	issueBody := fmt.Sprintf("Fix something\n<!-- cq\npost-command: %s\n-->", postCmd)
+	issueBody := fmt.Sprintf("Fix something\n<!-- issuebot\npost-command: %s\n-->", postCmd)
 
 	w := &Worker{
 		Client:    ghClient,
@@ -396,7 +396,7 @@ func TestWorker_ProcessIssue_PostCommand(t *testing.T) {
 
 func TestWorker_ProcessIssue_IssueConfigOverride(t *testing.T) {
 	cli := config.CLIConfig{Strategy: "direct"}
-	body := "<!-- cq\nstrategy: pr\nbranch: custom-branch\n-->"
+	body := "<!-- issuebot\nstrategy: pr\nbranch: custom-branch\n-->"
 	issueCfg := config.ParseIssueConfig(body)
 
 	strategy := config.ResolveStrategy(cli, issueCfg)

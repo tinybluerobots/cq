@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v69/github"
-	"github.com/tinybluerobots/cq/internal/ratelimit"
+	"github.com/tinybluerobots/issuebot/internal/ratelimit"
 )
 
 // ErrInvalidRepoFormat is returned when a repo string is not in "owner/name" format.

@@ -11,7 +11,7 @@ import (
 func TestParseIssueConfig_Full(t *testing.T) {
 	body := `Some issue text here.
 
-<!-- cq
+<!-- issuebot
 strategy: commit
 branch: my-feature
 -->
@@ -42,7 +42,7 @@ func TestParseIssueConfig_Empty(t *testing.T) {
 }
 
 func TestParseIssueConfig_PartialFields(t *testing.T) {
-	body := `<!-- cq
+	body := `<!-- issuebot
 strategy: worktree
 -->`
 
@@ -57,7 +57,7 @@ strategy: worktree
 }
 
 func TestParseIssueConfig_UnknownKeysIgnored(t *testing.T) {
-	body := `<!-- cq
+	body := `<!-- issuebot
 strategy: pr
 branch: fix-123
 unknown_key: some_value
@@ -87,7 +87,7 @@ func TestDefaultConfig(t *testing.T) {
 		{"workers", cfg.Workers, 5},
 		{"max-retries", cfg.MaxRetries, 3},
 		{"label", cfg.Label, ""},
-		{"workspace-has-cq", strings.Contains(cfg.Workspace, ".cq/repos"), true},
+		{"workspace-has-issuebot", strings.Contains(cfg.Workspace, ".issuebot/repos"), true},
 		{"workspace-no-tilde", strings.HasPrefix(cfg.Workspace, "~"), false},
 	}
 
@@ -101,7 +101,7 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 func TestParseIssueConfig_MalformedYAML(t *testing.T) {
-	body := `<!-- cq
+	body := `<!-- issuebot
 strategy: [broken
 -->`
 
@@ -115,7 +115,7 @@ func TestDefaultConfig_WorkspaceUsesHomeDir(t *testing.T) {
 	cfg := DefaultCLIConfig()
 	home, _ := os.UserHomeDir()
 
-	expected := filepath.Join(home, ".cq", "repos")
+	expected := filepath.Join(home, ".issuebot", "repos")
 	if cfg.Workspace != expected {
 		t.Errorf("workspace: got %q, want %q", cfg.Workspace, expected)
 	}
@@ -148,13 +148,13 @@ func TestResolveBranch_IssueOverrides(t *testing.T) {
 
 func TestResolveBranch_Default(t *testing.T) {
 	issue := IssueConfig{}
-	if got := ResolveBranch(issue, 42); got != "cq/issue-42" {
-		t.Errorf("got %q, want %q", got, "cq/issue-42")
+	if got := ResolveBranch(issue, 42); got != "issuebot/issue-42" {
+		t.Errorf("got %q, want %q", got, "issuebot/issue-42")
 	}
 }
 
 func TestParseIssueConfig_PostCommand(t *testing.T) {
-	body := "<!-- cq\npost-command: gh pr comment $PR_NUMBER -b 'ready'\n-->"
+	body := "<!-- issuebot\npost-command: gh pr comment $PR_NUMBER -b 'ready'\n-->"
 	cfg := ParseIssueConfig(body)
 
 	if cfg.PostCommand != "gh pr comment $PR_NUMBER -b 'ready'" {
@@ -163,7 +163,7 @@ func TestParseIssueConfig_PostCommand(t *testing.T) {
 }
 
 func TestParseIssueConfig_PostCommandEmpty(t *testing.T) {
-	body := "<!-- cq\nstrategy: pr\n-->"
+	body := "<!-- issuebot\nstrategy: pr\n-->"
 	cfg := ParseIssueConfig(body)
 
 	if cfg.PostCommand != "" {
