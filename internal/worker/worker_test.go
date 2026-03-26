@@ -21,6 +21,7 @@ import (
 
 const (
 	testIssueTitle = "Test issue"
+	testEchoCmd    = "echo {prompt}"
 )
 
 // mockCommand creates a shell script that echoes output and exits with the given code.
@@ -90,7 +91,7 @@ func testWorker(t *testing.T) *Worker {
 	return &Worker{
 		State:     st,
 		Notifier:  notify.New(""),
-		CLIConfig: config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, Command: "cat"},
+		CLIConfig: config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, Command: testEchoCmd},
 	}
 }
 
@@ -155,24 +156,24 @@ func TestWorker_RunCommand_Failure(t *testing.T) {
 	}
 }
 
-func TestWorker_RunCommand_Stdin(t *testing.T) {
+func TestWorker_RunCommand_PromptSubstitution(t *testing.T) {
 	w := testWorker(t)
-	w.CLIConfig.Command = "cat"
+	w.CLIConfig.Command = testEchoCmd
 	dir := t.TempDir()
 
-	result, err := w.RunCommand(context.Background(), dir, "hello from stdin")
+	result, err := w.RunCommand(context.Background(), dir, "hello world")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if result != "hello from stdin" {
-		t.Errorf("result = %q, want %q", result, "hello from stdin")
+	if result != "hello world" {
+		t.Errorf("result = %q, want %q", result, "hello world")
 	}
 }
 
 func TestWorker_RunCommand_PromptPlaceholder(t *testing.T) {
 	w := testWorker(t)
-	w.CLIConfig.Command = "echo {prompt}"
+	w.CLIConfig.Command = testEchoCmd
 	dir := t.TempDir()
 
 	result, err := w.RunCommand(context.Background(), dir, "fix the bug")
@@ -187,7 +188,7 @@ func TestWorker_RunCommand_PromptPlaceholder(t *testing.T) {
 
 func TestWorker_RunCommand_PromptPlaceholder_QuotesHandled(t *testing.T) {
 	w := testWorker(t)
-	w.CLIConfig.Command = "echo {prompt}"
+	w.CLIConfig.Command = testEchoCmd
 	dir := t.TempDir()
 
 	result, err := w.RunCommand(context.Background(), dir, "it's a test")

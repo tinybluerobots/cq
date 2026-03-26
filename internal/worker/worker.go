@@ -82,21 +82,11 @@ func (w *Worker) pullRepo(ctx context.Context, repoDir string) (string, error) {
 // If the command contains {prompt}, the prompt is substituted as an argument.
 // Otherwise, the prompt is passed via stdin.
 func (w *Worker) RunCommand(ctx context.Context, workDir, prompt string) (string, error) {
-	cmdStr := w.CLIConfig.Command
-
-	// If {prompt} placeholder is present, substitute it and don't pipe stdin.
-	useStdin := !strings.Contains(cmdStr, "{prompt}")
-	if !useStdin {
-		cmdStr = strings.ReplaceAll(cmdStr, "{prompt}", shellescape(prompt))
-	}
+	cmdStr := strings.ReplaceAll(w.CLIConfig.Command, "{prompt}", shellescape(prompt))
 
 	cmd := exec.CommandContext(ctx, "sh", "-c", cmdStr)
 	cmd.Dir = workDir
 	cmd.Stderr = os.Stderr
-
-	if useStdin {
-		cmd.Stdin = strings.NewReader(prompt)
-	}
 
 	out, err := cmd.Output()
 	if err != nil {

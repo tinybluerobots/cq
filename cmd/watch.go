@@ -44,7 +44,7 @@ func init() {
 	f.StringVar(&cfg.Workspace, "workspace", cfg.Workspace, "Workspace directory for repo clones")
 	f.BoolVar(&cfg.Local, "local", cfg.Local, "Use current directory instead of cloning")
 	f.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "Run command but skip push/PR (print diff instead)")
-	f.StringVar(&cfg.Command, "command", cfg.Command, "Command to run (prompt via stdin or {prompt} placeholder)")
+	f.StringVar(&cfg.Command, "command", cfg.Command, "Command to run ({prompt} is replaced with the rendered prompt)")
 
 	_ = rootCmd.MarkFlagRequired("command")
 

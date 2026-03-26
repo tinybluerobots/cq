@@ -53,8 +53,8 @@ issuebot --repo owner/repo --ntfy-topic my-alerts --command "copilot -p {prompt}
 # Log to a file for background operation
 issuebot --org myorg --log-file ~/.issuebot/issuebot.log --command "claude -p {prompt} --dangerously-skip-permissions"
 
-# Use any command that reads from stdin
-issuebot --local --command "./my-issue-handler.sh"
+# Use a custom script
+issuebot --local --command "./my-issue-handler.sh {prompt}"
 ```
 
 ### Flags
@@ -69,7 +69,7 @@ issuebot --local --command "./my-issue-handler.sh"
 | `--workers` | `5` | Max concurrent repo workers |
 | `--workspace` | `~/.issuebot/repos` | Directory for cloned repos |
 | `--local` | `false` | Use current directory instead of cloning |
-| `--command` | **(required)** | Command to run (prompt via stdin or `{prompt}` placeholder) |
+| `--command` | **(required)** | Command to run (`{prompt}` is replaced with the rendered prompt) |
 | `--prompt-file` | `~/.issuebot/prompt.tmpl` | Path to prompt template file |
 | `--dry-run` | `false` | Run command but skip push/PR (print diff instead) |
 | `--max-retries` | `3` | Max retry attempts per issue |
@@ -94,7 +94,7 @@ Each repo gets at most one concurrent worker to prevent conflicts. Failed issues
 
 The prompt template controls what your command receives as input. On first run, issuebot writes a default template to `~/.issuebot/prompt.tmpl`. Use `--prompt-file` to specify a different path.
 
-The template uses Go's [text/template](https://pkg.go.dev/text/template) syntax. The rendered output is passed to your `--command` via stdin (or substituted into `{prompt}`).
+The template uses Go's [text/template](https://pkg.go.dev/text/template) syntax. The rendered output replaces `{prompt}` in your `--command`.
 
 **Default template:**
 
@@ -133,7 +133,7 @@ The `ISSUE_FAILED` marker is important — if the command output contains it, is
 
 ## Command Interface
 
-The `--command` flag is required. By default, the prompt is passed via stdin. If your tool needs it as an argument, use `{prompt}` as a placeholder (stdin is not used when `{prompt}` is present):
+The `--command` flag is required. Use `{prompt}` as a placeholder — issuebot substitutes it with the rendered prompt template:
 
 ```bash
 # Claude Code
@@ -144,9 +144,6 @@ issuebot --command "copilot -p {prompt} --yolo"
 
 # Google Gemini CLI
 issuebot --command "gemini -p {prompt} --yolo"
-
-# Any tool that reads stdin
-issuebot --command "./my-issue-handler.sh"
 ```
 
 ## Per-Issue Configuration
