@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/google/go-github/v69/github"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRender_ExtraFields(t *testing.T) {
@@ -13,9 +15,7 @@ func TestRender_ExtraFields(t *testing.T) {
 	tmplPath := filepath.Join(dir, "test.tmpl")
 
 	tmpl := `Repo: {{.Repo}} Author: {{.Author}} Labels: {{.Labels}} Branch: {{.DefaultBranch}}`
-	if err := os.WriteFile(tmplPath, []byte(tmpl), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(tmplPath, []byte(tmpl), 0644))
 
 	num := 1
 	title := "test"
@@ -34,13 +34,9 @@ func TestRender_ExtraFields(t *testing.T) {
 	}
 
 	result, err := Render(tmplPath, "org/repo", issue, "main")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
-	if result != "Repo: org/repo Author: octocat Labels: bug Branch: main" {
-		t.Errorf("got %q", result)
-	}
+	assert.Equal(t, "Repo: org/repo Author: octocat Labels: bug Branch: main", result)
 }
 
 func TestRender_MultipleLabels(t *testing.T) {
@@ -48,9 +44,7 @@ func TestRender_MultipleLabels(t *testing.T) {
 	tmplPath := filepath.Join(dir, "test.tmpl")
 
 	tmpl := `{{.Labels}}`
-	if err := os.WriteFile(tmplPath, []byte(tmpl), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(tmplPath, []byte(tmpl), 0644))
 
 	num := 1
 	title := "test"
@@ -65,11 +59,7 @@ func TestRender_MultipleLabels(t *testing.T) {
 	}
 
 	result, err := Render(tmplPath, "org/repo", issue, "main")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
-	if result != "bug, priority" {
-		t.Errorf("got %q", result)
-	}
+	assert.Equal(t, "bug, priority", result)
 }
