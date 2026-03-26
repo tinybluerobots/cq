@@ -241,6 +241,10 @@ func (w *Worker) ProcessIssue(ctx context.Context, repo string, issue *github.Is
 	}
 
 	logger.Info("issue processed", "status", state.StatusCompleted)
+
+	if err := w.Notifier.Send(ctx, fmt.Sprintf("issuebot completed %s", key)); err != nil {
+		logger.Error("send notification", "error", err)
+	}
 }
 
 // runPostCommand executes a post-PR shell command with PR_URL and PR_NUMBER env vars.
