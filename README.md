@@ -35,8 +35,26 @@ cq --repo owner/repo
 # Watch all repos in an org
 cq --org myorg
 
+# Only process issues labelled "cq"
+cq --repo owner/repo --label cq
+
+# Preview what cq would do without pushing
+cq --repo owner/repo --dry-run
+
+# Push fixes directly instead of opening PRs
+cq --repo owner/repo --strategy commit
+
 # Use a custom command instead of Claude
 cq --local --command "my-ai-tool"
+
+# Poll every 5 minutes with 10 workers
+cq --org myorg --interval 5m --workers 10
+
+# Get notified on failures via ntfy.sh
+cq --repo owner/repo --ntfy-topic my-alerts
+
+# Log to a file for background operation
+cq --org myorg --log-file ~/.cq/cq.log
 ```
 
 ### Flags
@@ -106,6 +124,15 @@ Override defaults per issue by adding a config block to the issue body:
 <!-- cq
 strategy: commit
 branch: custom-branch-name
+-->
+```
+
+Example with post-command to request review after PR creation:
+
+```markdown
+<!-- cq
+strategy: pr
+post-command: gh pr edit $PR_NUMBER --add-reviewer octocat
 -->
 ```
 
