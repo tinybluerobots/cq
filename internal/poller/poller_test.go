@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/google/go-github/v69/github"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testClient(srv *httptest.Server) *github.Client {
@@ -21,13 +23,8 @@ func testClient(srv *httptest.Server) *github.Client {
 
 func TestPoller_ListRepos_Org(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/orgs/myorg/repos" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-
-		if r.URL.Query().Get("type") != "sources" {
-			t.Fatalf("expected type=sources, got %s", r.URL.Query().Get("type"))
-		}
+		assert.Equal(t, "/orgs/myorg/repos", r.URL.Path)
+		assert.Equal(t, "sources", r.URL.Query().Get("type"))
 
 		repos := []*github.Repository{
 			{FullName: github.Ptr("myorg/good-repo"), Archived: github.Ptr(false), Fork: github.Ptr(false)},
@@ -36,10 +33,7 @@ func TestPoller_ListRepos_Org(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-
-		if err := json.NewEncoder(w).Encode(repos); err != nil {
-			t.Errorf("encode repos: %v", err)
-		}
+		require.NoError(t, json.NewEncoder(w).Encode(repos))
 	}))
 	defer srv.Close()
 
@@ -49,17 +43,9 @@ func TestPoller_ListRepos_Org(t *testing.T) {
 	}
 
 	repos, err := p.ListRepos(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(repos) != 1 {
-		t.Fatalf("expected 1 repo, got %d: %v", len(repos), repos)
-	}
-
-	if repos[0] != "myorg/good-repo" {
-		t.Fatalf("expected myorg/good-repo, got %s", repos[0])
-	}
+	require.NoError(t, err)
+	require.Len(t, repos, 1)
+	require.Equal(t, "myorg/good-repo", repos[0])
 }
 
 func TestPoller_ListRepos_Single(t *testing.T) {
@@ -68,28 +54,16 @@ func TestPoller_ListRepos_Single(t *testing.T) {
 	}
 
 	repos, err := p.ListRepos(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(repos) != 1 || repos[0] != "owner/single-repo" {
-		t.Fatalf("expected [owner/single-repo], got %v", repos)
-	}
+	require.NoError(t, err)
+	require.Len(t, repos, 1)
+	require.Equal(t, "owner/single-repo", repos[0])
 }
 
 func TestPoller_ListIssues_WithLabel(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/repos/myorg/myrepo/issues" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-
-		if r.URL.Query().Get("state") != "open" {
-			t.Fatalf("expected state=open, got %s", r.URL.Query().Get("state"))
-		}
-
-		if r.URL.Query().Get("labels") != "claude" {
-			t.Fatalf("expected labels=claude, got %s", r.URL.Query().Get("labels"))
-		}
+		assert.Equal(t, "/repos/myorg/myrepo/issues", r.URL.Path)
+		assert.Equal(t, "open", r.URL.Query().Get("state"))
+		assert.Equal(t, "claude", r.URL.Query().Get("labels"))
 
 		issues := []*github.Issue{
 			{Number: github.Ptr(1), Title: github.Ptr("Real issue")},
@@ -97,10 +71,7 @@ func TestPoller_ListIssues_WithLabel(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-
-		if err := json.NewEncoder(w).Encode(issues); err != nil {
-			t.Errorf("encode issues: %v", err)
-		}
+		require.NoError(t, json.NewEncoder(w).Encode(issues))
 	}))
 	defer srv.Close()
 
@@ -110,17 +81,9 @@ func TestPoller_ListIssues_WithLabel(t *testing.T) {
 	}
 
 	issues, err := p.ListIssues(context.Background(), "myorg/myrepo")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(issues) != 1 {
-		t.Fatalf("expected 1 issue, got %d", len(issues))
-	}
-
-	if issues[0].GetNumber() != 1 {
-		t.Fatalf("expected issue #1, got #%d", issues[0].GetNumber())
-	}
+	require.NoError(t, err)
+	require.Len(t, issues, 1)
+	require.Equal(t, 1, issues[0].GetNumber())
 }
 
 func TestPoller_ListIssues_WithAuthor(t *testing.T) {
@@ -131,10 +94,7 @@ func TestPoller_ListIssues_WithAuthor(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-
-		if err := json.NewEncoder(w).Encode(issues); err != nil {
-			t.Errorf("encode issues: %v", err)
-		}
+		require.NoError(t, json.NewEncoder(w).Encode(issues))
 	}))
 	defer srv.Close()
 
@@ -144,34 +104,21 @@ func TestPoller_ListIssues_WithAuthor(t *testing.T) {
 	}
 
 	issues, err := p.ListIssues(context.Background(), "myorg/myrepo")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(issues) != 1 {
-		t.Fatalf("expected 1 issue, got %d", len(issues))
-	}
-
-	if issues[0].GetNumber() != 1 {
-		t.Fatalf("expected issue #1, got #%d", issues[0].GetNumber())
-	}
+	require.NoError(t, err)
+	require.Len(t, issues, 1)
+	require.Equal(t, 1, issues[0].GetNumber())
 }
 
 func TestPoller_ListIssues_NoLabel(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("labels") != "" {
-			t.Fatalf("expected no labels filter, got %s", r.URL.Query().Get("labels"))
-		}
+		assert.Empty(t, r.URL.Query().Get("labels"))
 
 		issues := []*github.Issue{
 			{Number: github.Ptr(1), Title: github.Ptr("Any issue")},
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-
-		if err := json.NewEncoder(w).Encode(issues); err != nil {
-			t.Errorf("encode issues: %v", err)
-		}
+		require.NoError(t, json.NewEncoder(w).Encode(issues))
 	}))
 	defer srv.Close()
 
@@ -180,11 +127,6 @@ func TestPoller_ListIssues_NoLabel(t *testing.T) {
 	}
 
 	issues, err := p.ListIssues(context.Background(), "myorg/myrepo")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(issues) != 1 {
-		t.Fatalf("expected 1 issue, got %d", len(issues))
-	}
+	require.NoError(t, err)
+	require.Len(t, issues, 1)
 }
