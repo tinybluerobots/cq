@@ -94,7 +94,34 @@ Each repo gets at most one concurrent worker to prevent conflicts. Failed issues
 
 ## Prompt Template
 
-On first run, issuebot writes a default prompt template to `~/.issuebot/prompt.tmpl`. Edit it to customise how issues are presented to your command. Available template fields:
+The prompt template controls what your command receives as input. On first run, issuebot writes a default template to `~/.issuebot/prompt.tmpl`. Use `--prompt-file` to specify a different path.
+
+The template uses Go's [text/template](https://pkg.go.dev/text/template) syntax. The rendered output is passed to your `--command` via stdin (or substituted into `{prompt}`).
+
+**Default template:**
+
+```
+You are working through a GitHub issue queue autonomously.
+The repo is: {{.Repo}}
+
+GitHub Issue #{{.Number}}: {{.Title}}
+
+{{.Body}}
+
+Steps:
+1. Read the issue carefully. Implement the changes needed to resolve it.
+2. Run tests (check package.json / Makefile / go.mod for how).
+3. Commit with a descriptive message referencing the issue number.
+4. Push to origin.
+5. Close the issue: gh issue close {{.Number}} --repo {{.Repo}} --comment "Resolved in $(git rev-parse --short HEAD)"
+6. Output exactly: ISSUE_RESOLVED #{{.Number}}
+
+If you cannot resolve the issue, output exactly: ISSUE_FAILED #{{.Number}} with a brief explanation.
+```
+
+The `ISSUE_FAILED` marker is important — if the command output contains it, issuebot marks the issue as failed and retries later.
+
+**Available fields:**
 
 | Field | Description |
 |-------|-------------|
