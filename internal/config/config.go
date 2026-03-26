@@ -11,6 +11,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// StrategyCommit pushes directly to the default branch.
+const StrategyCommit = "commit"
+
+// StrategyPR creates a branch and opens a pull request.
+const StrategyPR = "pr"
+
 // CLIConfig holds all CLI-level configuration.
 type CLIConfig struct {
 	Org        string
@@ -43,7 +49,7 @@ var issueConfigRe = regexp.MustCompile(`(?s)<!--\s*issuebot\s*\n(.*?)\n-->`)
 func DefaultCLIConfig() CLIConfig {
 	return CLIConfig{
 		Label:      "",
-		Strategy:   "commit",
+		Strategy:   StrategyCommit,
 		Interval:   30 * time.Second,
 		Workers:    5,
 		MaxRetries: 3,

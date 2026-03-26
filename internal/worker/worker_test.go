@@ -91,7 +91,7 @@ func testWorker(t *testing.T) *Worker {
 	return &Worker{
 		State:     st,
 		Notifier:  notify.New(""),
-		CLIConfig: config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, Command: testEchoCmd},
+		CLIConfig: config.CLIConfig{Strategy: config.StrategyPR, MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, Command: testEchoCmd},
 	}
 }
 
@@ -251,7 +251,7 @@ func TestWorker_ProcessIssue_PRStrategy(t *testing.T) {
 		Client:    ghClient,
 		State:     st,
 		Notifier:  notify.New(""),
-		CLIConfig: config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, Command: cmdPath},
+		CLIConfig: config.CLIConfig{Strategy: config.StrategyPR, MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, Command: cmdPath},
 
 		CloneURL: bare,
 	}
@@ -294,7 +294,7 @@ func TestWorker_ProcessIssue_DryRun(t *testing.T) {
 	w := &Worker{
 		State:     st,
 		Notifier:  notify.New(""),
-		CLIConfig: config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, DryRun: true, Command: cmdPath},
+		CLIConfig: config.CLIConfig{Strategy: config.StrategyPR, MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, DryRun: true, Command: cmdPath},
 
 		CloneURL: bare,
 	}
@@ -370,7 +370,7 @@ func TestWorker_ProcessIssue_PostCommand(t *testing.T) {
 		Client:    ghClient,
 		State:     st,
 		Notifier:  notify.New(""),
-		CLIConfig: config.CLIConfig{Strategy: "pr", MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, Command: cmdPath},
+		CLIConfig: config.CLIConfig{Strategy: config.StrategyPR, MaxRetries: 3, Workspace: filepath.Join(dir, "repos"), PromptFile: promptFile, Command: cmdPath},
 
 		CloneURL: bare,
 	}
@@ -401,8 +401,8 @@ func TestWorker_ProcessIssue_IssueConfigOverride(t *testing.T) {
 	issueCfg := config.ParseIssueConfig(body)
 
 	strategy := config.ResolveStrategy(cli, issueCfg)
-	if strategy != "pr" {
-		t.Errorf("strategy = %q, want %q", strategy, "pr")
+	if strategy != config.StrategyPR {
+		t.Errorf("strategy = %q, want %q", strategy, config.StrategyPR)
 	}
 
 	branch := config.ResolveBranch(issueCfg, 5)

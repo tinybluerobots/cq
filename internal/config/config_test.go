@@ -19,8 +19,8 @@ branch: my-feature
 More text.`
 
 	cfg := ParseIssueConfig(body)
-	if cfg.Strategy != "commit" {
-		t.Errorf("strategy: got %q, want %q", cfg.Strategy, "commit")
+	if cfg.Strategy != StrategyCommit {
+		t.Errorf("strategy: got %q, want %q", cfg.Strategy, StrategyCommit)
 	}
 
 	if cfg.Branch != "my-feature" {
@@ -65,8 +65,8 @@ another: thing
 -->`
 
 	cfg := ParseIssueConfig(body)
-	if cfg.Strategy != "pr" {
-		t.Errorf("strategy: got %q, want %q", cfg.Strategy, "pr")
+	if cfg.Strategy != StrategyPR {
+		t.Errorf("strategy: got %q, want %q", cfg.Strategy, StrategyPR)
 	}
 
 	if cfg.Branch != "fix-123" {
@@ -82,7 +82,7 @@ func TestDefaultConfig(t *testing.T) {
 		got  interface{}
 		want interface{}
 	}{
-		{"strategy", cfg.Strategy, "commit"},
+		{"strategy", cfg.Strategy, StrategyCommit},
 		{"interval", cfg.Interval, 30 * time.Second},
 		{"workers", cfg.Workers, 5},
 		{"max-retries", cfg.MaxRetries, 3},
@@ -124,9 +124,9 @@ func TestDefaultConfig_WorkspaceUsesHomeDir(t *testing.T) {
 func TestResolveStrategy_IssueOverrides(t *testing.T) {
 	cli := DefaultCLIConfig()
 
-	issue := IssueConfig{Strategy: "commit"}
-	if got := ResolveStrategy(cli, issue); got != "commit" {
-		t.Errorf("got %q, want %q", got, "commit")
+	issue := IssueConfig{Strategy: StrategyCommit}
+	if got := ResolveStrategy(cli, issue); got != StrategyCommit {
+		t.Errorf("got %q, want %q", got, StrategyCommit)
 	}
 }
 
@@ -134,8 +134,8 @@ func TestResolveStrategy_FallbackToCLI(t *testing.T) {
 	cli := DefaultCLIConfig()
 
 	issue := IssueConfig{}
-	if got := ResolveStrategy(cli, issue); got != "commit" {
-		t.Errorf("got %q, want %q", got, "commit")
+	if got := ResolveStrategy(cli, issue); got != StrategyCommit {
+		t.Errorf("got %q, want %q", got, StrategyCommit)
 	}
 }
 

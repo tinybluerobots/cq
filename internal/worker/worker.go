@@ -153,7 +153,7 @@ func (w *Worker) ProcessIssue(ctx context.Context, repo string, issue *github.Is
 	}
 
 	// If PR strategy, create branch.
-	if strategy == "pr" {
+	if strategy == config.StrategyPR {
 		cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "checkout", "-b", branch)
 
 		cmd.Stderr = os.Stderr
@@ -205,7 +205,7 @@ func (w *Worker) ProcessIssue(ctx context.Context, repo string, issue *github.Is
 	}
 
 	// Push and optionally create PR.
-	if strategy == "pr" {
+	if strategy == config.StrategyPR {
 		if err := w.pushAndCreatePR(ctx, key, logger, repoDir, repo, branch, issue, attempts, issueCfg); err != nil {
 			return
 		}
