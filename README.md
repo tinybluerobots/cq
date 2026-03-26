@@ -6,21 +6,19 @@ Autonomous GitHub issue processor powered by any CLI tool. Watches repos for ope
 
 ## Install
 
-Download a prebuilt binary from the [latest release](https://github.com/tinybluerobots/issuebot/releases/latest).
+Via [mise](https://mise.jdx.dev):
 
-Or via `go install`:
+```bash
+mise use -g go:github.com/tinybluerobots/issuebot
+```
+
+Via `go install`:
 
 ```bash
 go install github.com/tinybluerobots/issuebot@latest
 ```
 
-Or build from source:
-
-```bash
-git clone https://github.com/tinybluerobots/issuebot.git
-cd issuebot
-go build -o issuebot .
-```
+Or download a prebuilt binary from the [latest release](https://github.com/tinybluerobots/issuebot/releases/latest).
 
 ## Usage
 
