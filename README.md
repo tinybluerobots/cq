@@ -44,6 +44,9 @@ issuebot --org myorg --command "gemini -p {prompt} --yolo"
 # Only process issues labelled "bug"
 issuebot --repo owner/repo --label bug --command "claude -p {prompt} --dangerously-skip-permissions"
 
+# Only process issues created by a specific user
+issuebot --repo owner/repo --author octocat --command "claude -p {prompt} --dangerously-skip-permissions"
+
 # Preview what the command would do without pushing
 issuebot --repo owner/repo --dry-run --command "claude -p {prompt} --dangerously-skip-permissions"
 
