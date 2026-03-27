@@ -99,7 +99,7 @@ Requires a GitHub token. Set `GITHUB_TOKEN` or run `gh auth login`.
 4. **Opens a PR** or pushes directly, depending on strategy
 5. **Tracks state** in `~/.issuebot/state.json` to avoid re-processing
 
-Each repo gets at most one concurrent worker to prevent conflicts. Failed issues are retried up to `--max-retries` times.
+Each repo gets at most one concurrent worker to prevent conflicts — if a repo already has an issue in progress, other issues for that repo are skipped until the next poll cycle. The `--workers` flag controls how many repos can be processed in parallel. For a single repo, only one issue runs at a time regardless of the worker count. For orgs with many repos, increasing `--workers` lets more repos be served simultaneously. Failed issues are retried up to `--max-retries` times.
 
 ## Prompt Template
 
